@@ -1,14 +1,139 @@
-# Project
+# Azure OpenAI benchmarking tool
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+> :warning: **Code in this repo is written for testing purposes and should not be used in production**
 
-As the maintainer of this project, please make a few updates:
+The Azure OpenAI Benchmarking tool is designed to aid customers in benchmarking their provisioned-throughput deployments. Provisioned throughput deployments provide a set amount of model compute. But determining the exact performance for you application is dependent on several variables such as: prompt size, generation size and call rate. 
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+The benchmarking tool provides a simple way to run test traffic on your deploymnet and validate the throughput for your traffic workloads. The script will output key performance statistics including the average and 95th percentile latencies and utilization of the deployment. 
+
+You can use this tool to experiment with total throughput at 100% utilization across different traffic patterns for a ```Provisioned-Managed``` deployment type. These tests allow you to better optimize your solution design by adjusting the prompt size, generation size and PTUs deployed
+
+
+## Setup
+
+### Pre-requisites
+1. An Azure OpenAI Service resource with a  model model deployed with a provisioned deployment (either ```Provisioned``` or ```Provisioned-Managed```) deplyment type. For more information, see the [resource deployment guide](https://learn.microsoft.com/azure/ai-services/openai/how-to/create-resource?pivots=web-portal).
+2. Your resource endpoint and access key. The script assumes the key is stored in the following environment variable: ```OPENAI_API_KEY```. For more information on finding your endpoint and key, see the [Azure OpenAI Quickstart](https://learn.microsoft.com/azure/ai-services/openai/quickstart?tabs=command-line&pivots=programming-language-python#retrieve-key-and-endpoint).
+
+### Building and running
+
+In an existing python environment:
+```
+$ pip install -r requirements.txt
+```
+
+Build a docker container:
+```
+$ docker build -t azure-openai-benchmarking .
+$ docker run azure-openai-benchmarking
+```
+## General Guidelines
+
+Consider the following guidelines when creating your benchmark tests
+
+1.  **Ensure call characteristics match your production expectations**. The number of calls per minute and total tokens you are able to process varies depending on the prompt size, generation size and call rate.
+1. **Run your test long enough to reach a stable state**. Throttling is based on the total compute you have deployed and are utilizing. The utilization includes active calls. As a result you will see a higher call rate when ramping up on an unloaded deployment because there are no existing active calls being processed. Once your deplyoment is fully loaded with a utilzation near 100%, throttling will increase as calls can only be processed as earlier ones are completed. To ensure an accurate measure, set the duration long enough for the throughput to stabilize, especialy when running at or close to 100% utilization.
+
+
+## Usage examples
+
+### Common Scenarios:
+The table below provides an example prompt & generation size we have seen with some customers. Actual sizes will vary significantly based on your overall architecture For example,the amount of data grounding you pull into the prompt as part of a chat session can increase the prompt size significantly.
+
+| Scenario | Prompt Size | Completion Size | Calls per minute | Provisioned throughput units (PTU) required |
+| -- | -- | -- | -- | -- |
+| Chat | 1000 | 200 | 45 | 200 |
+| Summarization | 7000 | 150 | 7 | 100 |
+| Classification | 7000 | 1 | 24 | 300|
+
+Or see the [pre-configured shape-profiles below](#shape-profiles) 
+
+
+### Run samples 
+**Run balanced flood load test for 2 minutes**
+
+```
+$ python -m benchmark.bench load \
+    --deployment gpt-4 \
+    --duration 120 \
+    https://myaccount.openai.azure.com
+
+8    rpm: 1.0  requests: 1      failures: 0      throttled: 0      ttft avg: 0.867  ttft 95th: n/a    tbt avg: 0.024  tbt 95th: n/a    util avg: 51.0%  util 95th: n/a   
+9    rpm: 2.0  requests: 2      failures: 0      throttled: 0      ttft avg: 0.667  ttft 95th: 0.847  tbt avg: 0.024  tbt 95th: 0.024  util avg: 54.4%  util 95th: 57.5% 
+```
+
+**Run load test at 60 RPM with exponential retry back-off**
+
+```
+$ python -m benchmark.bench load \
+    --deployment gpt-4 \
+    --rate 60 \
+    --retry exponential \
+    https://myaccount.openai.azure.com
+```
+
+**Load test with custom request shape**
+
+```
+$ python -m benchmark.bench load \
+    --deployment gpt-4 \
+    --rate 1 \
+    --shape custom \
+    --context-tokens 1000 \
+    --max-tokens 500 \
+    https://myaccount.openai.azure.com
+```
+
+**Obtain number of tokens for input context**
+
+`tokenize` subcommand can be used to count number of tokens for a given input.
+It supports both text and json chat messages input.
+
+```
+$ python -m benchmark.bench tokenize \
+    --model gpt-4 \
+    "this is my context"
+tokens: 4
+```
+
+Alternatively you can send your text via stdin:
+```
+$ cat mychatcontext.json | python -m benchmark.bench tokenize \
+    --model gpt-4
+tokens: 65
+```
+
+## Configuration Option Details
+### Shape profiles
+
+The tool generates synthetic requests using random words according to the number of context tokens in the shape profile requested. In addition, to avoid any engine optimizations, each prompt is prefixed with a random prefix to force engine to run a full request processing for each request without any optimization. This ensures that the results observed while running the tool are the worst case scenario for given traffic shape.
+
+The tool supports four different shape profiles via command line option `--shape-profile`:
+|profile|description|context tokens|max tokens|
+|-|-|-|-|
+|`balanced`|[default] Balanced count of context and generation tokens. Should be representative of typical workloads.|500|500|
+|`context`|Represents workloads with larger context sizes compared to generation. For example, chat assistants.|2000|200|
+|`generation`|Represents workloads with larger generation and smaller contexts. For example, question answering.|500|1000|
+|`custom`|Allows specifying custom values for context size (`--context-tokens`) and max generation tokens (`--max-tokens`).|||  
+
+### Output fields
+
+|field|description|sliding window|example|
+|-|-|-|-|
+|`time`|Time offset in seconds since the start of the test.|no|`120`|
+|`rpm`|Successful Requests Per Minute. Note that it may be less than `--rate` as it counts completed requests.|yes|`12`|
+|`requests`|Total number of requests made.|no|`1233`|
+|`failures`|Total number of failed requests out of `requests`.|no|`100`|
+|`throttled`|Total number of throttled requests out of `requests`.|no|`100`|
+|`gen tpm`|Number of generated Tokens Per Minute.|yes|`156`|
+|`ttft avg`|Average time in seconds from the beginning of the request until the first token was received.|yes|`0.122`|
+|`ttft 95th`|95th percentile of time in seconds from the beginning of the request until the first token was received.|yes|`0.130`|
+|`tbt avg`|Average time in seconds between two consequitive generated tokens.|yes|`0.018`|
+|`tbt 95th`|95th percentail of time in seconds between two consequitive generated tokens.|yes|`0.021`|
+|`e2e avg`|Average end to end request time.|yes|`1.2`|
+|`e2e 95th`|95th percentile of end to end request time.|yes|`1.5`|
+|`util avg`|Average deployment utilization percentage as reported by the service.|yes|`89.3%`|
+|`util_95th`|95th percentile of deployment utilization percentage as reported by the service.|yes|`91.2%`|
 
 ## Contributing
 

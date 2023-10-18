@@ -1,0 +1,8 @@
+argparse
+openai
+tiktoken
+numpy
+backoff
+wonderwords
+asyncio
+aiohttp
