@@ -4,6 +4,7 @@
 import time
 import aiohttp
 import logging
+import asyncio
 from typing import Optional
 import backoff
 
@@ -97,7 +98,7 @@ class OAIRequester:
                 try:
                     retry_after_str = response.headers[RETRY_AFTER_MS_HEADER]
                     retry_after_ms = float(retry_after_str)
-                    time.sleep(retry_after_ms/1000.0)
+                    await asyncio.sleep(retry_after_ms/1000.0)
                 except ValueError as e:
                     logging.warning(f"unable to parse retry-after header value: {UTILIZATION_HEADER}={retry_after_str}: {e}")   
                     # fallback to backoff
