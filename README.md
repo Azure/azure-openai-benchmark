@@ -20,12 +20,13 @@ You can use this tool to experiment with total throughput at 100% utilization ac
 In an existing python environment:
 ```
 $ pip install -r requirements.txt
+$ python -m benchmark.bench load --help
 ```
 
 Build a docker container:
 ```
 $ docker build -t azure-openai-benchmarking .
-$ docker run azure-openai-benchmarking
+$ docker run azure-openai-benchmarking load --help
 ```
 ## General Guidelines
 
