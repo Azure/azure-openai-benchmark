@@ -59,6 +59,7 @@ class _StatsAggregator(threading.Thread):
    response_latencies = _Samples()
    first_token_latencies = _Samples()
    token_latencies = _Samples()
+   context_tokens = _Samples()
    generated_tokens = _Samples()
    utilizations = _Samples()
 
@@ -107,6 +108,7 @@ class _StatsAggregator(threading.Thread):
             self.response_latencies._append(stats.request_start_time, stats.response_time - stats.request_start_time)
             self.first_token_latencies._append(stats.request_start_time, stats.first_token_time - stats.request_start_time)
             self.token_latencies._append(stats.request_start_time, (stats.response_end_time - stats.first_token_time) / stats.generated_tokens)
+            self.context_tokens._append(stats.request_start_time, stats.context_tokens)
             self.generated_tokens._append(stats.request_start_time, stats.generated_tokens)
          if stats.deployment_utilization is not None:
             self.utilizations._append(stats.request_start_time, stats.deployment_utilization)
@@ -116,6 +118,7 @@ class _StatsAggregator(threading.Thread):
          run_seconds = round(time.time() - self.start_time)
          e2e_latency_avg = round(np.average(self.request_latency._values()), 3) if self.request_latency._len() > 0 else "n/a"
          e2e_latency_95th = round(np.percentile(self.request_latency._values(), 95), 3) if self.request_latency._len() > 1 else "n/a"
+         context_per_minute = round(60.0 * np.sum(self.context_tokens._values()) / self.window_duration, 0)  if self.context_tokens._len() > 0 else "n/a"
          gen_per_minute = round(60.0 * np.sum(self.generated_tokens._values()) / self.window_duration, 0)  if self.generated_tokens._len() > 0 else "n/a"
          ttft_avg = round(np.average(self.first_token_latencies._values()), 3) if self.first_token_latencies._len() > 0 else "n/a"
          ttft_95th = round(np.percentile(self.first_token_latencies._values(), 95), 3) if self.first_token_latencies._len() > 1 else "n/a"
@@ -131,7 +134,10 @@ class _StatsAggregator(threading.Thread):
                "requests": self.requests_count,
                "failures": self.failed_count,
                "throttled": self.throttled_count,
-               "gen_tpm": gen_per_minute,
+               "tpm": {
+                  "context": context_per_minute,
+                  "gen": gen_per_minute,
+               },
                "e2e": {
                   "avg": e2e_latency_avg,
                   "95th": e2e_latency_95th,
@@ -151,7 +157,7 @@ class _StatsAggregator(threading.Thread):
             }
             print(json.dumps(j), flush=True)
          else:
-            print(f"time: {run_seconds:<4} rpm: {rpm:<5} requests: {self.requests_count:<5} failures: {self.failed_count:<5} throttled: {self.throttled_count:<5} gen tpm: {gen_per_minute:<6} ttft avg: {ttft_avg:<6} ttft 95th: {ttft_95th:<6} tbt avg: {tbt_avg:<6} tbt 95th: {tbt_95th:<6} e2e avg: {e2e_latency_avg:<6} e2e 95th: {e2e_latency_95th:<6} util avg: {util_avg:<6} util 95th: {util_95th:<6}", flush=True)
+            print(f"time: {run_seconds:<4} rpm: {rpm:<5} requests: {self.requests_count:<5} failures: {self.failed_count:<4} throttled: {self.throttled_count:<4} ctx_tpm: {context_per_minute:<6} gen_tpm: {gen_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
 
    def _slide_window(self):
       with self.lock:
@@ -189,8 +195,8 @@ class _RequestBuilder:
    def __iter__(self) -> Iterator[dict]:
       return self
 
-   def __next__(self) -> dict:
-      messages = _generate_messages(self.model, self.context_tokens, self.max_tokens)
+   def __next__(self) -> (dict, int):
+      messages, messages_tokens = _generate_messages(self.model, self.context_tokens, self.max_tokens)
       body = {"messages":messages}
       if self.max_tokens is not None:
          body["max_tokens"] = self.max_tokens
@@ -204,7 +210,7 @@ class _RequestBuilder:
          body["temperature"] = self.temperature
       if self.top_p is not None:
          body["top_p"] = self.top_p
-      return body
+      return body, messages_tokens
 
 def load(args):
    try:
@@ -275,8 +281,9 @@ def _run_load(request_builder: Iterable[dict],
    async def request_func(session:aiohttp.ClientSession):
       nonlocal aggregator
       nonlocal requester
-      request_body = request_builder.__next__()
+      request_body, messages_tokens = request_builder.__next__()
       stats = await requester.call(session, request_body)
+      stats.context_tokens = messages_tokens
       try:
          aggregator.aggregate_request(stats)
       except Exception as e:
@@ -296,26 +303,42 @@ def _run_load(request_builder: Iterable[dict],
    logging.info("finished load test")
 
 CACHED_PROMPT=""
-def _generate_messages(model:str, tokens:int, max_tokens:int=None) -> dict:
+CACHED_MESSAGES_TOKENS=0
+def _generate_messages(model:str, tokens:int, max_tokens:int=None) -> ([dict], int):
+   """
+   Generate `messages` array based on tokens and max_tokens.
+   Returns Tuple of messages array and actual context token count.
+   """
    global CACHED_PROMPT
+   global CACHED_MESSAGES_TOKENS
    try:
       r = wonderwords.RandomWord()
       messages = [{"role":"user", "content":str(time.time()) + " "}]
       if max_tokens is not None:
          messages.append({"role":"user", "content":str(time.time()) + f" write an essay in at least {max_tokens*3} words"})
+      messages_tokens = 0
 
       if len(CACHED_PROMPT) > 0:
          messages[0]["content"] += CACHED_PROMPT
+         messages_tokens = CACHED_MESSAGES_TOKENS
       else:
          prompt = ""
          base_prompt = messages[0]["content"]
-         while (remaining_tokens := tokens - num_tokens_from_messages(messages, model)) > 0:
+         while True:
+            messages_tokens = num_tokens_from_messages(messages, model)
+            remaining_tokens = tokens - messages_tokens
+            if remaining_tokens <= 0:
+               break
             prompt += " ".join(r.random_words(amount=math.ceil(remaining_tokens/4))) + " "
             messages[0]["content"] = base_prompt + prompt
+
          CACHED_PROMPT = prompt
+         CACHED_MESSAGES_TOKENS = messages_tokens
+
    except Exception as e:
       print (e)
-   return messages
+
+   return (messages, messages_tokens)
 
 def _validate(args):
     if len(args.api_version) == 0:

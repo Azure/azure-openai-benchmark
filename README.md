@@ -47,21 +47,11 @@ The table below provides an example prompt & generation size we have seen with s
 | Summarization | 7000 | 150 | 7 | 100 |
 | Classification | 7000 | 1 | 24 | 300|
 
-Or see the [pre-configured shape-profiles below](#shape-profiles) 
-
+Or see the [pre-configured shape-profiles below](#shape-profiles).
 
 ### Run samples 
-**Run balanced flood load test for 2 minutes**
 
-```
-$ python -m benchmark.bench load \
-    --deployment gpt-4 \
-    --duration 120 \
-    https://myaccount.openai.azure.com
-
-8    rpm: 1.0  requests: 1      failures: 0      throttled: 0      ttft avg: 0.867  ttft 95th: n/a    tbt avg: 0.024  tbt 95th: n/a    util avg: 51.0%  util 95th: n/a   
-9    rpm: 2.0  requests: 2      failures: 0      throttled: 0      ttft avg: 0.667  ttft 95th: 0.847  tbt avg: 0.024  tbt 95th: 0.024  util avg: 54.4%  util 95th: 57.5% 
-```
+During a run, statistics are periodically output every 60s to `stdout` while logs are output to `stderr`. Some metrics may not show up immediately due to lack of data. 
 
 **Run load test at 60 RPM with exponential retry back-off**
 
@@ -71,6 +61,13 @@ $ python -m benchmark.bench load \
     --rate 60 \
     --retry exponential \
     https://myaccount.openai.azure.com
+
+2023-10-19 18:21:06 INFO     using shape profile balanced: context tokens: 500, max tokens: 500
+2023-10-19 18:21:06 INFO     warming up prompt cache
+2023-10-19 18:21:06 INFO     starting load...
+time: 10   rpm: 1.0   requests: 1     failures: 0    throttled: 0    ctx tpm: 501.0  gen tpm: 103.0  ttft avg: 0.736  ttft 95th: n/a    tbt avg: 0.088  tbt 95th: n/a    e2e avg: 1.845  e2e 95th: n/a    util avg: 0.0%   util 95th: n/a   
+time: 11   rpm: 5.0   requests: 5     failures: 0    throttled: 0    ctx tpm: 2505.0 gen tpm: 515.0  ttft avg: 0.937  ttft 95th: 1.321  tbt avg: 0.042  tbt 95th: 0.043  e2e avg: 1.223 e2e 95th: 1.658 util avg: 0.8%   util 95th: 1.6%  
+time: 12   rpm: 8.0   requests: 8     failures: 0    throttled: 0    ctx tpm: 4008.0 gen tpm: 824.0  ttft avg: 0.913  ttft 95th: 1.304  tbt avg: 0.042  tbt 95th: 0.043  e2e avg: 1.241 e2e 95th: 1.663 util avg: 1.3%   util 95th: 2.6% 
 ```
 
 **Load test with custom request shape**
@@ -126,14 +123,15 @@ The tool supports four different shape profiles via command line option `--shape
 |`requests`|Total number of requests made.|no|`1233`|
 |`failures`|Total number of failed requests out of `requests`.|no|`100`|
 |`throttled`|Total number of throttled requests out of `requests`.|no|`100`|
-|`gen tpm`|Number of generated Tokens Per Minute.|yes|`156`|
-|`ttft avg`|Average time in seconds from the beginning of the request until the first token was received.|yes|`0.122`|
-|`ttft 95th`|95th percentile of time in seconds from the beginning of the request until the first token was received.|yes|`0.130`|
-|`tbt avg`|Average time in seconds between two consequitive generated tokens.|yes|`0.018`|
-|`tbt 95th`|95th percentail of time in seconds between two consequitive generated tokens.|yes|`0.021`|
-|`e2e avg`|Average end to end request time.|yes|`1.2`|
-|`e2e 95th`|95th percentile of end to end request time.|yes|`1.5`|
-|`util avg`|Average deployment utilization percentage as reported by the service.|yes|`89.3%`|
+|`ctx_tpm`|Number of context Tokens Per Minute.|yes|`1200`|
+|`gen_tpm`|Number of generated Tokens Per Minute.|yes|`156`|
+|`ttft_avg`|Average time in seconds from the beginning of the request until the first token was received.|yes|`0.122`|
+|`ttft_95th`|95th percentile of time in seconds from the beginning of the request until the first token was received.|yes|`0.130`|
+|`tbt_avg`|Average time in seconds between two consequitive generated tokens.|yes|`0.018`|
+|`tbt_95th`|95th percentail of time in seconds between two consequitive generated tokens.|yes|`0.021`|
+|`e2e_avg`|Average end to end request time.|yes|`1.2`|
+|`e2e_95th`|95th percentile of end to end request time.|yes|`1.5`|
+|`util_avg`|Average deployment utilization percentage as reported by the service.|yes|`89.3%`|
 |`util_95th`|95th percentile of deployment utilization percentage as reported by the service.|yes|`91.2%`|
 
 ## Contributing

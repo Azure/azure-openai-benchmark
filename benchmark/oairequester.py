@@ -28,7 +28,8 @@ class RequestStats:
         self.response_time: Optional[float] = None
         self.first_token_time: Optional[float] = None
         self.response_end_time: Optional[float] = None
-        self.generated_tokens: Optional[float] = None
+        self.context_tokens: int = 0
+        self.generated_tokens: Optional[int] = None
         self.deployment_utilization: Optional[float] = None
         self.calls: int = 0
         self.last_exception: Optional[Exception] = None
