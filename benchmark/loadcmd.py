@@ -166,6 +166,7 @@ class _StatsAggregator(threading.Thread):
          self.response_latencies._trim_oldest(self.window_duration)
          self.first_token_latencies._trim_oldest(self.window_duration)
          self.token_latencies._trim_oldest(self.window_duration)
+         self.context_tokens._trim_oldest(self.window_duration)
          self.generated_tokens._trim_oldest(self.window_duration)
          self.utilizations._trim_oldest(self.window_duration)
 
