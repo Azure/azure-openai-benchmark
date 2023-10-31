@@ -3,6 +3,7 @@
 
 import threading
 import time
+import datetime
 import os
 import json
 import aiohttp
@@ -116,6 +117,7 @@ class _StatsAggregator(threading.Thread):
    def _dump(self):
       with self.lock:
          run_seconds = round(time.time() - self.start_time)
+         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
          e2e_latency_avg = round(np.average(self.request_latency._values()), 3) if self.request_latency._len() > 0 else "n/a"
          e2e_latency_95th = round(np.percentile(self.request_latency._values(), 95), 3) if self.request_latency._len() > 1 else "n/a"
          context_per_minute = round(60.0 * np.sum(self.context_tokens._values()) / self.window_duration, 0)  if self.context_tokens._len() > 0 else "n/a"
@@ -130,6 +132,7 @@ class _StatsAggregator(threading.Thread):
          if self.json_output:
             j = {
                "run_seconds": run_seconds,
+               "timestamp": timestamp,
                "rpm": rpm,
                "requests": self.requests_count,
                "failures": self.failed_count,
@@ -157,7 +160,7 @@ class _StatsAggregator(threading.Thread):
             }
             print(json.dumps(j), flush=True)
          else:
-            print(f"time: {run_seconds:<4} rpm: {rpm:<5} requests: {self.requests_count:<5} failures: {self.failed_count:<4} throttled: {self.throttled_count:<4} ctx_tpm: {context_per_minute:<6} gen_tpm: {gen_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
+            print(f"{timestamp} rpm: {rpm:<5} requests: {self.requests_count:<5} failures: {self.failed_count:<4} throttled: {self.throttled_count:<4} ctx_tpm: {context_per_minute:<6} gen_tpm: {gen_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
 
    def _slide_window(self):
       with self.lock:
