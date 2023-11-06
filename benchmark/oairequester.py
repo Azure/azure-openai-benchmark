@@ -99,6 +99,7 @@ class OAIRequester:
                 try:
                     retry_after_str = response.headers[RETRY_AFTER_MS_HEADER]
                     retry_after_ms = float(retry_after_str)
+                    logging.debug(f"retry-after sleeping for {retry_after_ms}ms")
                     await asyncio.sleep(retry_after_ms/1000.0)
                 except ValueError as e:
                     logging.warning(f"unable to parse retry-after header value: {UTILIZATION_HEADER}={retry_after_str}: {e}")   
