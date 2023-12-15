@@ -1,12 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import threading
 import datetime
-import time
 import json
+import logging
+import threading
+import time
+
 import numpy as np
+
 from .oairequester import RequestStats
+
+logger = logging.getLogger()
 
 class _Samples:
    def __init__(self):
@@ -153,9 +158,9 @@ class _StatsAggregator(threading.Thread):
                   "95th": util_95th,
                },
             }
-            print(json.dumps(j), flush=True)
+            logger.info(json.dumps(j))
          else:
-            print(f"{timestamp} rpm: {rpm:<5} requests: {self.requests_count:<5} failures: {self.failed_count:<4} throttled: {self.throttled_count:<4} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
+            logger.info(f"rpm: {rpm:<5} requests: {self.requests_count:<5} failures: {self.failed_count:<4} throttled: {self.throttled_count:<4} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} util_avg: {util_avg:<6} util_95th: {util_95th:<6}")
 
    def _slide_window(self):
       with self.lock:

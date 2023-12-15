@@ -3,9 +3,12 @@
 
 import argparse
 import logging
+import os
+from datetime import datetime
 
-from .tokenizecmd import tokenize
 from .loadcmd import load
+from .tokenizecmd import tokenize
+
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
@@ -30,6 +33,7 @@ def main():
     load_parser.add_argument("--temperature", type=float, help="Request temperature.")
     load_parser.add_argument("--top-p", type=float, help="Request top_p.")
     load_parser.add_argument("-f", "--output-format", type=str, default="human", help="Output format.", choices=["jsonl", "human"])
+    load_parser.add_argument("--log-save-dir", type=str, help="If provided, will save stddout to this directory. Filename will include important run parameters.")
     load_parser.add_argument("-t", "--retry", type=str, default="none", help="Request retry strategy.", choices=["none", "exponential"])
     load_parser.add_argument("-e", "--deployment", type=str, help="Azure OpenAI deployment name.", required=True)
     load_parser.add_argument("api_base_endpoint", help="Azure OpenAI deployment base endpoint.", nargs=1)
@@ -46,6 +50,20 @@ def main():
     tokenizer_parser.set_defaults(func=tokenize)
 
     args = parser.parse_args()
+
+    if "log_save_dir" in args:
+        now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        shape_str = f"context={args.context_tokens}_max_tokens={args.max_tokens}" if args.shape_profile == "custom" else args.shape_profile
+        output_path = os.path.join(args.log_save_dir, f"{now}_{args.deployment}_shape-{shape_str}_rate={int(args.rate)}_clients={int(args.clients)}")
+        os.makedirs(args.log_save_dir, exist_ok=True)
+        try:
+            os.remove(output_path)
+        except:
+            pass
+        fh = logging.FileHandler(output_path)
+        logger = logging.getLogger()
+        logger.addHandler(fh)
+
     if "func" in args:
         args.func(args)
     else:
