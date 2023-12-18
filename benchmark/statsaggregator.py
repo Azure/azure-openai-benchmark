@@ -40,9 +40,9 @@ class _StatsAggregator(threading.Thread):
    terminate: threading.Event
 
    start_time: float = 0
+   pending_requests_count: int = 0
    total_requests_count: int = 0
    total_failed_count: int = 0
-   failed_count: int = 0
    throttled_count: int = 0
 
    request_timestamps = _Samples()
@@ -80,16 +80,23 @@ class _StatsAggregator(threading.Thread):
    def stop(self):
       self.terminate.set()
 
+   def record_new_request(self):
+      """
+      Records a new request, so that the number of pending requests is known.
+      """
+      with self.lock:
+         self.pending_requests_count += 1
+
    def aggregate_request(self, stats: RequestStats):
       """
       Aggregates request stat within the sliding window.
       :param stats: request stats object.
       """
       with self.lock:
+         self.pending_requests_count -= 1
          self.total_requests_count += 1
          self.call_tries._append(stats.request_start_time, stats.calls)
          if stats.response_status_code != 200:
-            self.failed_count += 1
             self.total_failed_count += 1
             if stats.response_status_code == 429:
                self.throttled_count += 1
@@ -129,8 +136,9 @@ class _StatsAggregator(threading.Thread):
                "run_seconds": run_seconds,
                "timestamp": timestamp,
                "rpm": rpm,
-               "requests": self.total_requests_count,
-               "failures": self.failed_count,
+               "pending_requests_count": self.pending_requests_count,
+               "completed_requests": self.total_requests_count,
+               "failures": self.total_failed_count,
                "throttled": self.throttled_count,
                "tpm": {
                   "context": context_per_minute,
@@ -156,7 +164,7 @@ class _StatsAggregator(threading.Thread):
             }
             print(json.dumps(j), flush=True)
          else:
-            print(f"{timestamp} rpm: {rpm:<5} requests: {self.total_requests_count:<5} failures: {self.failed_count:<4} throttled: {self.throttled_count:<4} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
+            print(f"{timestamp} rpm: {rpm:<5} pending_requests: {self.total_requests_count:<5} completed_requests: {self.total_requests_count:<5} failures: {self.total_failed_count:<4} throttled: {self.throttled_count:<4} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
 
    def _slide_window(self):
       with self.lock:
