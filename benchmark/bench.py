@@ -54,11 +54,11 @@ def main():
     if "log_save_dir" in args:
         now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         shape_str = f"context={args.context_tokens}_max_tokens={args.max_tokens}" if args.shape_profile == "custom" else args.shape_profile
-        output_path = os.path.join(args.log_save_dir, f"{now}_{args.deployment}_shape-{shape_str}_rate={int(args.rate)}_clients={int(args.clients)}")
+        output_path = os.path.join(args.log_save_dir, f"{now}_{args.deployment}_shape-{shape_str}_rate={int(args.rate) if args.rate is not None else 'none'}_clients={int(args.clients)}")
         os.makedirs(args.log_save_dir, exist_ok=True)
         try:
             os.remove(output_path)
-        except:
+        except FileNotFoundError:
             pass
         fh = logging.FileHandler(output_path)
         logger = logging.getLogger()
