@@ -55,7 +55,7 @@ def main():
         now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         shape_str = f"context={args.context_tokens}_max_tokens={args.max_tokens}" if args.shape_profile == "custom" else args.shape_profile
         rate_str = str(int(args.rate)) if (args.rate is not None) else 'none'
-        output_path = os.path.join(args.log_save_dir, f"{now}_{args.deployment}_shape-{shape_str}_clients={int(args.clients)}_rate={rate_str}")
+        output_path = os.path.join(args.log_save_dir, f"{now}_{args.deployment}_shape-{shape_str}_clients={int(args.clients)}_rate={rate_str}.log")
         os.makedirs(args.log_save_dir, exist_ok=True)
         try:
             os.remove(output_path)
