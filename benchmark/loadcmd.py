@@ -23,11 +23,11 @@ class _RequestBuilder:
    Wrapper iterator class to build request payloads.
    """
    def __init__(self, model:str, context_tokens:int,
-                max_tokens:None, 
-                completions:None, 
-                frequency_penalty:None, 
-                presence_penalty:None, 
-                temperature:None, 
+                max_tokens:None,
+                completions:None,
+                frequency_penalty:None,
+                presence_penalty:None,
+                temperature:None,
                 top_p:None):
       self.model = model
       self.context_tokens = context_tokens
@@ -101,7 +101,7 @@ def load(args):
    logging.info("starting load...")
 
    _run_load(request_builder,
-      max_concurrency=args.clients, 
+      max_concurrency=args.clients,
       api_key=api_key,
       url=url,
       rate_limiter=rate_limiter,
@@ -112,19 +112,20 @@ def load(args):
       json_output=args.output_format=="jsonl")
 
 def _run_load(request_builder: Iterable[dict],
-              max_concurrency: int, 
+              max_concurrency: int,
               api_key: str,
               url: str,
-              rate_limiter=None, 
+              rate_limiter=None,
               backoff=False,
-              duration=None, 
+              duration=None,
               aggregation_duration=60,
               request_count=None,
               json_output=False):
    aggregator = _StatsAggregator(
       window_duration=aggregation_duration,
-      dump_duration=1, 
+      dump_duration=1,
       clients=max_concurrency,
+      expected_gen_tokens=request_builder.max_tokens,
       json_output=json_output)
    requester = OAIRequester(api_key, url, backoff=backoff)
 
@@ -141,13 +142,13 @@ def _run_load(request_builder: Iterable[dict],
          print(e)
 
    executer = AsyncHTTPExecuter(
-      request_func, 
-      rate_limiter=rate_limiter, 
+      request_func,
+      rate_limiter=rate_limiter,
       max_concurrency=max_concurrency)
 
    aggregator.start()
    executer.run(
-      call_count=request_count, 
+      call_count=request_count,
       duration=duration)
    aggregator.stop()
 
@@ -219,4 +220,3 @@ def _validate(args):
        raise ValueError("presence-penalty must be between -2.0 and 2.0")
     if args.temperature is not None and (args.temperature < 0 or args.temperature > 2):
        raise ValueError("temperature must be between 0 and 2.0")
-    
