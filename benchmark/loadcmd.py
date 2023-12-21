@@ -1,20 +1,23 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import time
+import json
+import logging
+import math
 import os
+import sys
+import time
+from typing import Iterable, Iterator
+
 import aiohttp
 import wonderwords
-import math
-import logging
-from typing import Iterable, Iterator
-from .statsaggregator import _StatsAggregator
-from .oairequester import OAIRequester
-from .asynchttpexecuter import AsyncHTTPExecuter
-from .ratelimiting import RateLimiter, NoRateLimiter
-from .oaitokenizer import num_tokens_from_messages
 
-import sys
+from .asynchttpexecuter import AsyncHTTPExecuter
+from .oairequester import OAIRequester
+from .oaitokenizer import num_tokens_from_messages
+from .ratelimiting import NoRateLimiter, RateLimiter
+from .statsaggregator import _StatsAggregator
+
 
 class _RequestBuilder:
    """
@@ -65,6 +68,29 @@ def load(args):
    except ValueError as e:
        print(f"invalid argument(s): {e}")
        sys.exit(1)
+
+   run_args = {
+      "api_base_endpoint": args.api_base_endpoint[0],
+      "deployment": args.deployment,
+      "clients": args.clients,
+      "requests": args.requests,
+      "duration": args.duration,
+      "rate": args.rate,
+      "aggregation_window": args.aggregation_window,
+      "shape_profile": args.shape_profile,
+      "context_tokens": args.context_tokens,
+      "max_tokens": args.max_tokens,
+      "completions": args.completions,
+      "retry": args.retry,
+      "api_version": args.api_version,
+      "frequency_penalty": args.frequency_penalty,
+      "presence_penalty": args.presence_penalty,
+      "temperature": args.temperature,
+      "top_p": args.top_p,
+      "output_format": args.output_format,
+   }
+   converted = json.dumps(run_args)
+   logging.info("Load test args: " + converted)
 
    api_key = os.getenv(args.api_key_env)
    url = args.api_base_endpoint[0] + "/openai/deployments/" + args.deployment + "/chat/completions"

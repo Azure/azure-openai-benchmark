@@ -33,7 +33,7 @@ $ docker run azure-openai-benchmarking load --help
 Consider the following guidelines when creating your benchmark tests
 
 1.  **Ensure call characteristics match your production expectations**. The number of calls per minute and total tokens you are able to process varies depending on the prompt size, generation size and call rate.
-1. **Run your test long enough to reach a stable state**. Throttling is based on the total compute you have deployed and are utilizing. The utilization includes active calls. As a result you will see a higher call rate when ramping up on an unloaded deployment because there are no existing active calls being processed. Once your deplyoment is fully loaded with a utilzation near 100%, throttling will increase as calls can only be processed as earlier ones are completed. To ensure an accurate measure, set the duration long enough for the throughput to stabilize, especialy when running at or close to 100% utilization.
+1. **Run your test long enough to reach a stable state**. Throttling is based on the total compute you have deployed and are utilizing. The utilization includes active calls. As a result you will see a higher call rate when ramping up on an unloaded deployment because there are no existing active calls being processed. Once your deplyoment is fully loaded with a utilzation near 100%, throttling will increase as calls can only be processed as earlier ones are completed. To ensure an accurate measure, set the duration long enough for the throughput to stabilize, especialy when running at or close to 100% utilization. Also note that once the test ends (either by termination, or reaching the maximum duration or number of requests), any pending requests will continue to drain, which can result in lower throughput values as the load on the endpoint gradually decreases to 0.
 
 
 ## Usage examples
@@ -99,6 +99,13 @@ Alternatively you can send your text via stdin:
 $ cat mychatcontext.json | python -m benchmark.bench tokenize \
     --model gpt-4
 tokens: 65
+```
+
+**Analyse JSON logs from multiple runs**
+
+The `combine_logs` subcommand can be used to load and combine the logs from multiple runs into a single CSV, ready for comparison. This tool extracts the run arguments as well as the final set of stats prior to the run ending (either by termination or hitting the request/duration limit).
+```
+$ python -m benchmark.bench combine_logs logs/ combined_logs.csv --load_recursive
 ```
 
 ## Configuration Option Details
