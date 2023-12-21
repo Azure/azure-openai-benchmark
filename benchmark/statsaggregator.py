@@ -1,12 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import threading
 import datetime
-import time
 import json
+import logging
+import math
+import threading
+import time
+
 import numpy as np
+
 from .oairequester import RequestStats
+
 
 class _Samples:
    def __init__(self):
@@ -93,7 +98,14 @@ class _StatsAggregator(threading.Thread):
             if stats.response_status_code == 429:
                self.throttled_count += 1
          else:
-            self.request_latency._append(stats.request_start_time, stats.response_end_time - stats.request_start_time)
+            request_latency = stats.response_end_time - stats.request_start_time
+            self.request_latency._append(stats.request_start_time, request_latency)
+            if request_latency > self.window_duration:
+               logging.warning((
+                     f"request completed in {math.ceil(request_latency)} seconds, while aggregation_window is {int(self.window_duration)} "
+                     "seconds. Consider increasing aggregation_window to at least 2x your typical request latency."
+                  )
+               )   
             self.request_timestamps._append(stats.request_start_time, stats.request_start_time)
             self.response_latencies._append(stats.request_start_time, stats.response_time - stats.request_start_time)
             self.first_token_latencies._append(stats.request_start_time, stats.first_token_time - stats.request_start_time)
