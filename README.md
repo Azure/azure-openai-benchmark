@@ -122,6 +122,8 @@ The tool supports four different shape profiles via command line option `--shape
 |`generation`|Represents workloads with larger generation and smaller contexts. For example, question answering.|500|1000|
 |`custom`|Allows specifying custom values for context size (`--context-tokens`) and max generation tokens (`--max-tokens`).|||  
 
+Note: With the default prompting strategy, OpenAI models will typically return completions of a max of 700-1200 tokens. If setting `max_tokens` above 750, be aware that the results for `rpm` may be higher, and `e2e` latency lower, than if the model was returning completions of size `max_tokens` in every response. Refer to the `gen_tpr` stats at the end of each run to see how many tokens were generated across responses.
+
 ### Output fields
 
 |field|description|sliding window|example|
