@@ -124,6 +124,7 @@ def _run_load(request_builder: Iterable[dict],
    aggregator = _StatsAggregator(
       window_duration=aggregation_duration,
       dump_duration=1, 
+      clients=max_concurrency,
       json_output=json_output)
    requester = OAIRequester(api_key, url, backoff=backoff)
 
