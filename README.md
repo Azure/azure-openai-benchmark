@@ -141,9 +141,9 @@ Note: With the default prompting strategy, OpenAI models will typically return c
 |`ttft_95th`|95th percentile of time in seconds from the beginning of the request until the first token was received.|yes|`0.130`|
 |`tbt_avg`|Average time in seconds between two consequitive generated tokens.|yes|`0.018`|
 |`tbt_95th`|95th percentail of time in seconds between two consequitive generated tokens.|yes|`0.021`|
-|`gen_tpr_10th`|90th percentile of tokens per response.|yes|`389`|
-|`gen_tpr_avg`|Average tokens per response.|yes|`509`|
-|`gen_tpr_90th`|90th percentile of tokens per response.|yes|`626`|
+|`gen_tpr_10th`|10th percentile of number of generated tokens per model response.|yes|`389`|
+|`gen_tpr_avg`|Average number of generated tokens per model response.|yes|`509`|
+|`gen_tpr_90th`|90th percentile of number of generated tokens per model response.|yes|`626`|
 |`e2e_avg`|Average end to end request time.|yes|`1.2`|
 |`e2e_95th`|95th percentile of end to end request time.|yes|`1.5`|
 |`util_avg`|Average deployment utilization percentage as reported by the service.|yes|`89.3%`|
