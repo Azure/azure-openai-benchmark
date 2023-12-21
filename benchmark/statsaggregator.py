@@ -102,8 +102,8 @@ class _StatsAggregator(threading.Thread):
             self.request_latency._append(stats.request_start_time, request_latency)
             if request_latency > self.window_duration:
                logging.warning((
-                     f"request completed in {math.ceil(request_latency)} seconds, while aggregation-window is {int(self.window_duration)} "
-                     "seconds. Consider increasing aggregation-window to at least 2x your typical request latency."
+                     f"request completed in {round(request_latency, 2)} seconds, while aggregation-window is {round(self.window_duration, 2)} "
+                     "seconds, consider increasing aggregation-window to at least 2x your typical request latency."
                   )
                )   
             self.request_timestamps._append(stats.request_start_time, stats.request_start_time)
