@@ -159,8 +159,8 @@ class _StatsAggregator(threading.Thread):
          )) and gen_tpr_avg < 0.9 * self.expected_gen_tokens:
             logging.warning(
                (
-                  f"Average tokens per response is {gen_tpr_avg}, compared to requested max_tokens of {self.expected_gen_tokens}."
-                  " This may mean measured RPM and e2e request latency are higher here than in real-world workloads"
+                  f"average tokens per response is {gen_tpr_avg}, compared to requested max_tokens of {self.expected_gen_tokens}."
+                  " this may mean measured rpm and e2e request latency are higher here than in real-world workloads"
                   " (tpm, ttft & tbt stats will still be accurate)."
                )
             )
