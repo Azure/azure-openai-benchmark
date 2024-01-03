@@ -55,17 +55,17 @@ class _StatsAggregator(threading.Thread):
    generated_tokens = _Samples()
    utilizations = _Samples()
 
-   def __init__(self, dump_duration:float=5, window_duration:float=60, clients:int=1, json_output=False, *args,**kwargs):
+   def __init__(self, clients:int, dump_duration:float=5, window_duration:float=60, json_output=False, *args,**kwargs):
       """
+      :param clients: number of clients used in testing
       :param dump_duration: duration in seconds to dump current aggregates.
       :param window_duration: duration of sliding window in second to consider for aggregation.
-      :param clients: number of clients used in testing
       :param json_output: whether to dump periodic stats as json or human readable.
       """
+      self.clients = clients
       self.dump_duration = dump_duration
       self.json_output = json_output
       self.window_duration = window_duration
-      self.clients = clients
 
       super(_StatsAggregator, self).__init__(*args, **kwargs)
 
@@ -80,9 +80,9 @@ class _StatsAggregator(threading.Thread):
          self._slide_window()
 
    def stop(self):
+      self.terminate.set()
       # Dump one more time to ensure we include the final request
       self._dump()
-      self.terminate.set()
 
    def record_new_request(self):
       """
@@ -146,6 +146,7 @@ class _StatsAggregator(threading.Thread):
                "completed": self.total_requests_count,
                "failures": self.total_failed_count,
                "throttled": self.throttled_count,
+               "requests": self.total_requests_count,
                "tpm": {
                   "context": context_per_minute,
                   "gen": gen_per_minute,
@@ -170,7 +171,7 @@ class _StatsAggregator(threading.Thread):
             }
             print(json.dumps(j), flush=True)
          else:
-            print(f"{timestamp} rpm: {rpm:<5} processing: {processing_requests_count:<5} completed: {self.total_requests_count:<5} failures: {self.total_failed_count:<4} throttled: {self.throttled_count:<4} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
+            print(f"{timestamp} rpm: {rpm:<5} processing: {processing_requests_count:<4} completed: {self.total_requests_count:<5} failures: {self.total_failed_count:<4} throttled: {self.throttled_count:<4} requests: {self.total_requests_count:<5} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
 
    def _slide_window(self):
       with self.lock:
