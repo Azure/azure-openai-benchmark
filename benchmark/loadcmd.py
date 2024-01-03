@@ -166,7 +166,7 @@ def _generate_messages(model:str, tokens:int, max_tokens:int=None) -> ([dict], i
       r = wonderwords.RandomWord()
       messages = [{"role":"user", "content":str(time.time()) + " "}]
       if max_tokens is not None:
-         messages.append({"role":"user", "content":str(time.time()) + f" write an essay in at least {max_tokens*3} words"})
+         messages.append({"role":"user", "content":str(time.time()) + f" write a long essay about life in at least {max_tokens} tokens"})
       messages_tokens = 0
 
       if len(CACHED_PROMPT) > 0:
