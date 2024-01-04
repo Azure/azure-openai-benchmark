@@ -149,44 +149,34 @@ def _run_load(request_builder: Iterable[dict],
 
    logging.info("finished load test")
 
-CACHED_PROMPT=""
-CACHED_MESSAGES_TOKENS=0
-def _generate_messages(model:str, tokens:int, max_tokens:int=None) -> ([dict], int):
-   """
-   Generate `messages` array based on tokens and max_tokens.
-   Returns Tuple of messages array and actual context token count.
-   """
-   global CACHED_PROMPT
-   global CACHED_MESSAGES_TOKENS
-   try:
-      r = wonderwords.RandomWord()
-      messages = [{"role":"user", "content":str(time.time()) + " "}]
-      if max_tokens is not None:
-         messages.append({"role":"user", "content":str(time.time()) + f" write a long essay about life in at least {max_tokens} tokens"})
-      messages_tokens = 0
+def read_input_messages(file_name: str):
+    """
+    Read messages from a file, each line is considered a separate message.
+    Returns a list of messages.
+    """
+    with open(file_name, 'r', encoding='utf-8') as file:
+        return file.readlines()
 
-      if len(CACHED_PROMPT) > 0:
-         messages[0]["content"] += CACHED_PROMPT
-         messages_tokens = CACHED_MESSAGES_TOKENS
-      else:
-         prompt = ""
-         base_prompt = messages[0]["content"]
-         while True:
-            messages_tokens = num_tokens_from_messages(messages, model)
-            remaining_tokens = tokens - messages_tokens
-            if remaining_tokens <= 0:
-               break
-            prompt += " ".join(r.random_words(amount=math.ceil(remaining_tokens/4))) + " "
-            messages[0]["content"] = base_prompt + prompt
+def _generate_messages(model: str, tokens: int, max_tokens: int = None) -> ([dict], int):
+    """
+    Generate `messages` array based on tokens and max_tokens.
+    Returns Tuple of messages array and actual context token count.
+    """
+    try:
+        messages = []
+        input_messages = read_input_messages('prompt_inputs.txt')
+        for line_number, input_message in enumerate(input_messages, start=1):
+            message = f"question number: {line_number} {input_message}"
+            messages.append({"role": "user", "content": str(time.time()) + message})
 
-         CACHED_PROMPT = prompt
-         CACHED_MESSAGES_TOKENS = messages_tokens
+        messages_tokens = num_tokens_from_messages(messages, model)
+    except Exception as e:
+        print(e)
+        messages = []
+        messages_tokens = 0
 
-   except Exception as e:
-      print (e)
-
-   return (messages, messages_tokens)
-
+    return messages, messages_tokens
+ 
 def _validate(args):
     if len(args.api_version) == 0:
       raise ValueError("api-version is required")
