@@ -157,14 +157,20 @@ def read_input_messages(file_name: str):
     with open(file_name, 'r', encoding='utf-8') as file:
         return file.readlines()
 
+input_messages_cache = None
+
 def _generate_messages(model: str, tokens: int, max_tokens: int = None) -> ([dict], int):
     """
     Returns Tuple of messages array and actual context token count.
     """
+    global input_messages_cache
     try:
         messages = []
-        input_messages = read_input_messages('prompt_inputs.txt')
-        for line_number, input_message in enumerate(input_messages, start=1):
+
+        if input_messages_cache is None:
+            input_messages_cache = read_input_messages('prompt_inputs.txt')
+
+        for line_number, input_message in enumerate(input_messages_cache, start=1):
             message = f"question number: {line_number}: {input_message}"
             messages.append({"role": "user", "content": str(time.time()) + message})
 
@@ -174,7 +180,7 @@ def _generate_messages(model: str, tokens: int, max_tokens: int = None) -> ([dic
         messages = []
         messages_tokens = 0
 
-    return messages, messages_tokens
+    return messages, messages_tokens   
  
 def _validate(args):
     if len(args.api_version) == 0:
@@ -194,6 +200,8 @@ def _validate(args):
     if args.shape_profile == "custom":
        if args.context_tokens < 1:
           raise ValueError("context-tokens must be specified with shape=custom")
+    if args.custom-prompt < 0:
+       raise ValueError("need to set the input prompt content file")
     if args.max_tokens is not None and args.max_tokens < 0:
        raise ValueError("max-tokens must be > 0")
     if args.completions < 1:
