@@ -76,7 +76,6 @@ $ python -m benchmark.bench load \
 $ python -m benchmark.bench load \
     --deployment gpt-4 \
     --rate 1 \
-    --shape custom \
     --context-generation-method replay
     --replay-path replay_messages.json
     --max-tokens 500 \
