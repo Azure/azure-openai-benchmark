@@ -4,8 +4,9 @@
 import argparse
 import logging
 
-from .tokenizecmd import tokenize
 from .loadcmd import load
+from .tokenizecmd import tokenize
+
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
@@ -21,6 +22,8 @@ def main():
     load_parser.add_argument("-d", "--duration", type=int, help="Duration of load in seconds. Defaults to 'until killed'.")
     load_parser.add_argument("-r", "--rate", type=float, help="Rate of request generation in Requests Per Minute (RPM). Default to as fast as possible.")
     load_parser.add_argument("-w", "--aggregation-window", type=float, default=60, help="Statistics aggregation sliding window duration in seconds. See README.md for more details.")
+    load_parser.add_argument("--context-generation-method", type=str, default="generate", help="Source of context messages to be used during testing.", choices=["generate", "replay"])
+    load_parser.add_argument("--replay-path", type=str, help="Path to JSON file containing messages for replay when using --context-message-source=replay.")
     load_parser.add_argument("-s", "--shape-profile", type=str, default="balanced", help="Shape profile of requests.", choices=["balanced", "context", "generation", "custom"])
     load_parser.add_argument("-p", "--context-tokens", type=int, help="Number of context tokens to use when --shape-profile=custom.")
     load_parser.add_argument("-m", "--max-tokens", type=int, help="Number of requested max_tokens when --shape-profile=custom. Defaults to unset.")
