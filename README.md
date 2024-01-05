@@ -38,7 +38,7 @@ Consider the following guidelines when creating your benchmark tests
 
 ## Usage examples
 
-### Common Scenarios:
+### Common Scenarios for :
 The table below provides an example prompt & generation size we have seen with some customers. Actual sizes will vary significantly based on your overall architecture For example,the amount of data grounding you pull into the prompt as part of a chat session can increase the prompt size significantly.
 
 | Scenario | Prompt Size | Completion Size | Calls per minute | Provisioned throughput units (PTU) required |
@@ -68,6 +68,18 @@ $ python -m benchmark.bench load \
 2023-10-19 18:21:06 rpm: 1.0   requests: 1     failures: 0    throttled: 0    ctx tpm: 501.0  gen tpm: 103.0  ttft avg: 0.736  ttft 95th: n/a    tbt avg: 0.088  tbt 95th: n/a    e2e avg: 1.845  e2e 95th: n/a    util avg: 0.0%   util 95th: n/a   
 2023-10-19 18:21:07 rpm: 5.0   requests: 5     failures: 0    throttled: 0    ctx tpm: 2505.0 gen tpm: 515.0  ttft avg: 0.937  ttft 95th: 1.321  tbt avg: 0.042  tbt 95th: 0.043  e2e avg: 1.223 e2e 95th: 1.658 util avg: 0.8%   util 95th: 1.6%  
 2023-10-19 18:21:08 rpm: 8.0   requests: 8     failures: 0    throttled: 0    ctx tpm: 4008.0 gen tpm: 824.0  ttft avg: 0.913  ttft 95th: 1.304  tbt avg: 0.042  tbt 95th: 0.043  e2e avg: 1.241 e2e 95th: 1.663 util avg: 1.3%   util 95th: 2.6% 
+```
+
+**Load test with custom messages being loaded from file and used in all requests**
+
+```
+$ python -m benchmark.bench load \
+    --deployment gpt-4 \
+    --rate 1 \
+    --context-generation-method replay
+    --replay-path replay_messages.json
+    --max-tokens 500 \
+    https://myaccount.openai.azure.com
 ```
 
 **Load test with custom request shape**
@@ -102,17 +114,47 @@ tokens: 65
 ```
 
 ## Configuration Option Details
-### Shape profiles
+### Context Generation Method
+Using the `--context-generation-method` argument, this tool gives two options for how the source content of each request is generated:
 
-The tool generates synthetic requests using random words according to the number of context tokens in the shape profile requested. In addition, to avoid any engine optimizations, each prompt is prefixed with a random prefix to force engine to run a full request processing for each request without any optimization. This ensures that the results observed while running the tool are the worst case scenario for given traffic shape.
+**1: `generate`** [default]: Context information is generated automatically from a list of all english words, and the endpoint is instructed to generate a long story of `max_tokens` words. This is useful where existing data is not yet available, and should reslt in similar performance as real-world workoads with the same number of context & completion tokens.
 
-The tool supports four different shape profiles via command line option `--shape-profile`:
+In this mode, there are four different shape profiles via command line option `--shape-profile`:
 |profile|description|context tokens|max tokens|
 |-|-|-|-|
 |`balanced`|[default] Balanced count of context and generation tokens. Should be representative of typical workloads.|500|500|
 |`context`|Represents workloads with larger context sizes compared to generation. For example, chat assistants.|2000|200|
 |`generation`|Represents workloads with larger generation and smaller contexts. For example, question answering.|500|1000|
 |`custom`|Allows specifying custom values for context size (`--context-tokens`) and max generation tokens (`--max-tokens`).|||  
+
+
+**2: `replay`**: Messages are loaded from a JSON file and replayed back to the endpoint. This is useful for scenarios where testing with real-world data is important, and that data has already been generated or collected from an existing LLM application. 
+
+In this mode, all messages in the file are sampled randomly when making requests to the endpoint. This means the same message may be used multiple times in a benchmarking run, plus any anti-caching prefix if `prevent-server-caching=true`. The format of the JSON file should be a single array containing separate lists of messages which conform to the [OpenAI chat completions API schema](https://platform.openai.com/docs/api-reference/chat/create), like so:
+
+```
+[
+    [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "Can you explain how photosynthesis works?"}
+    ],
+    [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "What is the capital of France?"},
+      {"role": "assistant", "content": "The capital of France is Paris."},
+      {"role": "user", "content": "Please tell me about the history of Paris."}
+    ],
+]
+```
+
+In addition, when `--prevent-server-caching=true`, every message in each request payload is prefixed with a random string to force the inference endpoint to process each request without any optimization/caching that might occur if workloads are the same. This ensures that the results observed while running the tool are the worst case scenario for given traffic shape. For example:
+
+|initial request|request with random prefixes|
+|-|-|
+|{"role": "user", "content": "Can you explain how photosynthesis works?"}|{"role": "user", "content": "1704441942.868042 Can you explain how photosynthesis works?"}|
+||{"role": "user", "content": "1704441963.715898 Can you explain how photosynthesis works?"}|
+
+Setting `--prevent-server-caching=false` is only recommended when a sufficiently large replay dataset is available (e.g. at least double the number of messages than the total number of requests to be made across all test runs in a session). If the cache needs to be cleared/reset for additional runs, it is recommended that the PTU model deployment should be deleted and recreated in order to reload the model with an empty cache.
 
 ### Output fields
 

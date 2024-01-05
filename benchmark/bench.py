@@ -4,9 +4,20 @@
 import argparse
 import logging
 
-from .tokenizecmd import tokenize
 from .loadcmd import load
+from .tokenizecmd import tokenize
 
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+    
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -21,9 +32,12 @@ def main():
     load_parser.add_argument("-d", "--duration", type=int, help="Duration of load in seconds. Defaults to 'until killed'.")
     load_parser.add_argument("-r", "--rate", type=float, help="Rate of request generation in Requests Per Minute (RPM). Default to as fast as possible.")
     load_parser.add_argument("-w", "--aggregation-window", type=float, default=60, help="Statistics aggregation sliding window duration in seconds. See README.md for more details.")
+    load_parser.add_argument("--context-generation-method", type=str, default="generate", help="Source of context messages to be used during testing.", choices=["generate", "replay"])
+    load_parser.add_argument("--replay-path", type=str, help="Path to JSON file containing messages for replay when using --context-message-source=replay.")
     load_parser.add_argument("-s", "--shape-profile", type=str, default="balanced", help="Shape profile of requests.", choices=["balanced", "context", "generation", "custom"])
     load_parser.add_argument("-p", "--context-tokens", type=int, help="Number of context tokens to use when --shape-profile=custom.")
     load_parser.add_argument("-m", "--max-tokens", type=int, help="Number of requested max_tokens when --shape-profile=custom. Defaults to unset.")
+    load_parser.add_argument("--prevent-server-caching", type=str2bool, nargs='?', help="Adds a random prefixes to all requests in order to prevent server-side caching. Defaults to True.", const=True, default=True)
     load_parser.add_argument("-i", "--completions", type=int, default=1, help="Number of completion for each request.")
     load_parser.add_argument("--frequency-penalty", type=float, help="Request frequency_penalty.")
     load_parser.add_argument("--presence-penalty", type=float, help="Request frequency_penalty.")
