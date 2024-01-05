@@ -49,7 +49,6 @@ class _RequestBuilder:
 
     def __next__(self) -> (dict, int):
         messages, messages_tokens = self.messages_generator.generate_messages()
-        print(messages, messages_tokens)
         body = {"messages": messages}
         if self.max_tokens is not None:
             body["max_tokens"] = self.max_tokens
