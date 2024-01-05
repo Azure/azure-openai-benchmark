@@ -102,17 +102,45 @@ tokens: 65
 ```
 
 ## Configuration Option Details
-### Shape profiles
+### Context Source
+Using the `--context-source` argument, this tool gives two options for how the source content of each request is generated:
 
-The tool generates synthetic requests using random words according to the number of context tokens in the shape profile requested. In addition, to avoid any engine optimizations, each prompt is prefixed with a random prefix to force engine to run a full request processing for each request without any optimization. This ensures that the results observed while running the tool are the worst case scenario for given traffic shape.
+**1: `generate`** [default]: Context information is generated automatically from a list of all english words, and the endpoint is instructed to generate a long story of `max_tokens` words. This is useful where existing data is not yet available, and should provide similar results as when real-world data is used.
 
-The tool supports four different shape profiles via command line option `--shape-profile`:
+In this mode, there are four different shape profiles via command line option `--shape-profile`:
 |profile|description|context tokens|max tokens|
 |-|-|-|-|
 |`balanced`|[default] Balanced count of context and generation tokens. Should be representative of typical workloads.|500|500|
 |`context`|Represents workloads with larger context sizes compared to generation. For example, chat assistants.|2000|200|
 |`generation`|Represents workloads with larger generation and smaller contexts. For example, question answering.|500|1000|
 |`custom`|Allows specifying custom values for context size (`--context-tokens`) and max generation tokens (`--max-tokens`).|||  
+
+
+**2: `replay`**: Messages are loaded from a JSON file and replayed back to the endpoint (after adding a random prefix to the first message). This is useful for scenarios where testing with real-world data is important, and that data has already been generated or collected from an existing LLM application. 
+
+In this mode, all messages in the file are sampled randomly when making requests to the endpoint. This means the same message may be used multiple times in a benchmarking run, but with a different random prefix added to the first message in each (see below). The format of the JSON file should be a single array containing separate lists of messages which conform to the [OpenAI chat completions API schema](https://platform.openai.com/docs/api-reference/chat/create), like so:
+
+```
+[
+    [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "Can you explain how photosynthesis works?"}
+    ],
+    [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "What is the capital of France?"}
+      {"role": "assistant", "content": "The capital of France is Paris."}
+      {"role": "user", "content": "Please tell me about the history of Paris."}
+    ],
+]
+```
+
+In addition, to avoid any engine optimizations, each prompt is prefixed with a random prefix to force engine to run a full request processing for each request without any optimization/caching. This ensures that the results observed while running the tool are the worst case scenario for given traffic shape. For example:
+
+|initial request|request with random prefixes|
+|-|-|
+|{"role": "user", "content": "Can you explain how photosynthesis works?"}|{"role": "user", "content": "1704441942.868042 Can you explain how photosynthesis works?"}|
+||{"role": "user", "content": "1704441963.715898 Can you explain how photosynthesis works?"}|
 
 ### Output fields
 

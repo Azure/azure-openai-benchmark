@@ -1,20 +1,26 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import time
+import json
+import logging
+import math
 import os
+import random
+import sys
+import time
+from copy import copy
+from typing import Iterable, Iterator
+
 import aiohttp
 import wonderwords
-import math
-import logging
-from typing import Iterable, Iterator
-from .statsaggregator import _StatsAggregator
-from .oairequester import OAIRequester
-from .asynchttpexecuter import AsyncHTTPExecuter
-from .ratelimiting import RateLimiter, NoRateLimiter
-from .oaitokenizer import num_tokens_from_messages
+from pyexpat.errors import messages
 
-import sys
+from .asynchttpexecuter import AsyncHTTPExecuter
+from .oairequester import OAIRequester
+from .oaitokenizer import num_tokens_from_messages
+from .ratelimiting import NoRateLimiter, RateLimiter
+from .statsaggregator import _StatsAggregator
+
 
 class _RequestBuilder:
    """
@@ -186,6 +192,40 @@ def _generate_messages(model:str, tokens:int, max_tokens:int=None) -> ([dict], i
       print (e)
 
    return (messages, messages_tokens)
+
+CACHED_REPLAY_MESSAGES_AND_TOKENS = []
+def _replay_messages(model:str, path:str) -> list[dict]:
+   """
+   Generate `messages` array based on content of json file.
+   Returns Tuple of messages array and actual context token count.
+   :param model: Model being used in testing.
+   :param path: Path to JSON file containing messages.
+   """
+   global CACHED_REPLAY_MESSAGES_AND_TOKENS
+   if not CACHED_REPLAY_MESSAGES_AND_TOKENS:
+      # Load messages from file, checking structure
+      try:
+         with open(path, "r") as f:
+            all_messages_lists = json.load(f)
+         if not isinstance(all_messages_lists, list):
+            raise ValueError('Replay file must contain a JSON array. See README.md for more details.')
+         if len(all_messages_lists) == 0:
+            raise ValueError('Replay file must contain at least one list of messages. See README.md for more details.')
+         if not isinstance(all_messages_lists, list) and all(isinstance(messages, list) and len(messages) > 0 for messages in all_messages_lists):
+            raise ValueError('Replay file must contain a list of valid messages lists. See README.md for more details.')
+      except Exception as e:
+         raise ValueError(f"Error loading replay file: {e}")
+      # Get num tokens for each message list
+      for messages in all_messages_lists:
+         messages_tokens = num_tokens_from_messages(messages, model)
+         CACHED_REPLAY_MESSAGES_AND_TOKENS.append((messages, messages_tokens))
+   # Sample random message and add random prefix
+   messages, messages_tokens = random.choice(CACHED_REPLAY_MESSAGES_AND_TOKENS)
+   messages = copy.copy(messages)
+   messages[0]["content"] = str(time.time()) + " " + messages[0]["content"]
+   messages_tokens += 7 # Timestamps like "1704441942.868042" are 7 tokens for GPT models
+   return (messages, messages_tokens)
+
 
 def _validate(args):
     if len(args.api_version) == 0:
