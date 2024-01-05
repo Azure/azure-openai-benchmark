@@ -18,10 +18,14 @@ from benchmark.oaitokenizer import num_tokens_from_messages
 class BaseMessagesGenerator(ABC):
     """
     Base class for message generators.
+    :param model: Model being used in testing.
+    :param prevent_server_caching: When True, random characters will be added to
+        the start of each message to prevent server-side caching.
     """
 
-    def __init__(self, model: str):
+    def __init__(self, model: str, prevent_server_caching: bool):
         self.model = model
+        self.prevent_server_caching = prevent_server_caching
 
     @abstractmethod
     def generate_messages(self) -> List[Dict[str, str]]:
@@ -67,14 +71,22 @@ class RandomMessagesGenerator(BaseMessagesGenerator):
     random english words in order to ensure the context window is `max_tokens`
     long.
     :param model: Model being used in testing.
+    :param prevent_server_caching: When True, random characters will be added to
+        the start of each message to prevent server-side caching.
     :param tokens: Number of context tokens to use.
     :param max_tokens: Number of requested max_tokens.
     """
 
     _cached_messages_and_tokens: List[Tuple[Dict[str, str], int]] = []
 
-    def __init__(self, model: str, tokens: int, max_tokens: int = None):
-        super().__init__(model)
+    def __init__(
+        self,
+        model: str,
+        prevent_server_caching: bool,
+        tokens: int,
+        max_tokens: int = None,
+    ):
+        super().__init__(model, prevent_server_caching)
         logging.info("warming up prompt cache")
         r = wonderwords.RandomWord()
         messages = [{"role": "user", "content": ""}]
@@ -86,9 +98,12 @@ class RandomMessagesGenerator(BaseMessagesGenerator):
                 }
             )
         messages_tokens = num_tokens_from_messages(messages, model)
-        # Add anticache prefix before we start generating random words to ensure
-        # token count when used in testing is correct
-        messages, messages_tokens = self.add_anticache_prefix(messages, messages_tokens)
+        if self.prevent_server_caching:
+            # Add anticache prefix before we start generating random words to ensure
+            # token count when used in testing is correct
+            messages, messages_tokens = self.add_anticache_prefix(
+                messages, messages_tokens
+            )
         prompt = ""
         base_prompt = messages[0]["content"]
         while True:
@@ -101,10 +116,11 @@ class RandomMessagesGenerator(BaseMessagesGenerator):
             )
             messages[0]["content"] = base_prompt + prompt
 
-        # Now remove the anticache prefix from both messages
-        messages, messages_tokens = self.remove_anticache_prefix(
-            messages, messages_tokens
-        )
+        if self.prevent_server_caching:
+            # Now remove the anticache prefix from both messages
+            messages, messages_tokens = self.remove_anticache_prefix(
+                messages, messages_tokens
+            )
         self._cached_messages_and_tokens = [(messages, messages_tokens)]
 
     def generate_messages(self) -> Tuple[Dict[str, str], int]:
@@ -113,20 +129,24 @@ class RandomMessagesGenerator(BaseMessagesGenerator):
         Returns Tuple of messages array and actual context token count.
         """
         messages, messages_tokens = self._cached_messages_and_tokens[0]
-        return self.add_anticache_prefix(messages, messages_tokens)
+        if self.prevent_server_caching:
+            return self.add_anticache_prefix(messages, messages_tokens)
+        return (messages, messages_tokens)
 
 
 class ReplayMessagesGenerator(BaseMessagesGenerator):
     """
     Generates context messages based on an existing JSON file, sampling randomly.
     :param model: Model being used in testing.
+    :param prevent_server_caching: When True, random characters will be added to
+        the start of each message to prevent server-side caching.
     :param path: Number of context tokens to use.
     """
 
     _cached_messages_and_tokens: List[Tuple[Dict[str, str], int]] = []
 
-    def __init__(self, model: str, path: str):
-        super().__init__(model)
+    def __init__(self, model: str, prevent_server_caching: bool, path: str):
+        super().__init__(model, prevent_server_caching)
         # Load messages from file, checking structure
         logging.info("loading messages from file")
         try:
@@ -162,4 +182,6 @@ class ReplayMessagesGenerator(BaseMessagesGenerator):
         messages, messages_tokens = random.sample(
             self._cached_messages_and_tokens, k=1
         )[0]
-        return self.add_anticache_prefix(messages, messages_tokens)
+        if self.prevent_server_caching:
+            return self.add_anticache_prefix(messages, messages_tokens)
+        return (messages, messages_tokens)

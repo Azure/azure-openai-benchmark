@@ -102,12 +102,17 @@ def load(args):
             f"using random messages generation with shape profile {args.shape_profile}: context tokens: {context_tokens}, max tokens: {max_tokens}"
         )
         messages_generator = RandomMessagesGenerator(
-            model="gpt-4-0613", tokens=context_tokens, max_tokens=max_tokens
+            model="gpt-4-0613",
+            prevent_server_caching=args.prevent_server_caching,
+            tokens=context_tokens,
+            max_tokens=max_tokens,
         )
     if args.context_generation_method == "replay":
         logging.info(f"using messages replay from {args.replay_path}")
         messages_generator = ReplayMessagesGenerator(
-            model="gpt-4-0613", path=args.replay_path
+            model="gpt-4-0613",
+            prevent_server_caching=args.prevent_server_caching,
+            path=args.replay_path,
         )
 
     request_builder = _RequestBuilder(

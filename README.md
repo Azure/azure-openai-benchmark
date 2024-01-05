@@ -130,7 +130,7 @@ In this mode, there are four different shape profiles via command line option `-
 
 **2: `replay`**: Messages are loaded from a JSON file and replayed back to the endpoint. This is useful for scenarios where testing with real-world data is important, and that data has already been generated or collected from an existing LLM application. 
 
-In this mode, all messages in the file are sampled randomly when making requests to the endpoint. This means the same message may be used multiple times in a benchmarking run, but with a different random prefix added to the first message in each (see below). The format of the JSON file should be a single array containing separate lists of messages which conform to the [OpenAI chat completions API schema](https://platform.openai.com/docs/api-reference/chat/create), like so:
+In this mode, all messages in the file are sampled randomly when making requests to the endpoint. This means the same message may be used multiple times in a benchmarking run, plus any anti-caching prefix if `prevent-server-caching=true`. The format of the JSON file should be a single array containing separate lists of messages which conform to the [OpenAI chat completions API schema](https://platform.openai.com/docs/api-reference/chat/create), like so:
 
 ```
 [
@@ -147,12 +147,14 @@ In this mode, all messages in the file are sampled randomly when making requests
 ]
 ```
 
-In addition, to avoid any engine optimizations, each prompt is prefixed with a random prefix to force the inference endpoint to process each request without any optimization/caching that might occur if workloads are the same. This ensures that the results observed while running the tool are the worst case scenario for given traffic shape. For example:
+In addition, when `--prevent-server-caching=true`, every message in each request payload is prefixed with a random string to force the inference endpoint to process each request without any optimization/caching that might occur if workloads are the same. This ensures that the results observed while running the tool are the worst case scenario for given traffic shape. For example:
 
 |initial request|request with random prefixes|
 |-|-|
 |{"role": "user", "content": "Can you explain how photosynthesis works?"}|{"role": "user", "content": "1704441942.868042 Can you explain how photosynthesis works?"}|
 ||{"role": "user", "content": "1704441963.715898 Can you explain how photosynthesis works?"}|
+
+Setting `--prevent-server-caching=false` is only recommended when a sufficiently large replay dataset is available (e.g. at least double the number of messages than the total number of requests to be made across all test runs in a session). If the cache needs to be cleared/reset for additional runs, it is recommended that the PTU model deployment should be deleted and recreated in order to reload the model with an empty cache.
 
 ### Output fields
 
