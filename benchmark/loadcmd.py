@@ -1,20 +1,22 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import time
+import logging
+import math
 import os
+import sys
+import time
+from typing import Iterable, Iterator
+
 import aiohttp
 import wonderwords
-import math
-import logging
-from typing import Iterable, Iterator
-from .statsaggregator import _StatsAggregator
-from .oairequester import OAIRequester
-from .asynchttpexecuter import AsyncHTTPExecuter
-from .ratelimiting import RateLimiter, NoRateLimiter
-from .oaitokenizer import num_tokens_from_messages
 
-import sys
+from .asynchttpexecuter import AsyncHTTPExecuter
+from .oairequester import OAIRequester
+from .oaitokenizer import num_tokens_from_messages
+from .ratelimiting import NoRateLimiter, RateLimiter
+from .statsaggregator import _StatsAggregator
+
 
 class _RequestBuilder:
    """
@@ -131,6 +133,7 @@ def _run_load(request_builder: Iterable[dict],
    aggregator = _StatsAggregator(
       window_duration=aggregation_duration,
       dump_duration=1, 
+      clients=max_concurrency,
       json_output=json_output)
    requester = OAIRequester(api_key, url, backoff=backoff)
 
@@ -138,6 +141,7 @@ def _run_load(request_builder: Iterable[dict],
       nonlocal aggregator
       nonlocal requester
       request_body, messages_tokens = request_builder.__next__()
+      aggregator.record_new_request()
       stats = await requester.call(session, request_body)
       stats.context_tokens = messages_tokens
       try:
