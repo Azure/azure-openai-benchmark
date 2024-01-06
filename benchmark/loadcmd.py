@@ -90,6 +90,11 @@ def load(args):
 
    logging.info(f"using shape profile {args.shape_profile}: context tokens: {context_tokens}, max tokens: {max_tokens}")
 
+   if args.custom_prompt_file=="none" :
+     print("No custom_prompt_file input, using random generated input prompt") 
+   else:
+     print(f"Custom_prompt_file input:{args.custom_prompt_file}") 
+
    request_builder = _RequestBuilder("gpt-4-0613", context_tokens,
       max_tokens=max_tokens,
       completions=args.completions,
@@ -206,10 +211,10 @@ def _generate_messages(model: str, tokens: int, max_tokens: int = None, custom_p
     Returns Tuple of messages array and actual context token count.
     """
     if custom_prompt_file=="none" :
-      print("No custom_prompt_file input, using random generated input prompt") 
+      # print("No custom_prompt_file input, using random generated input prompt") 
       return _generate_random_messages(model, tokens, max_tokens)
 
-    print(f"Custom_prompt_file input:{custom_prompt_file}") 
+   #  print(f"Custom_prompt_file input:{custom_prompt_file}") 
     global input_messages_cache
     try:
         messages = []
