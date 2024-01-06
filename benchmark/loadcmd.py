@@ -26,7 +26,8 @@ class _RequestBuilder:
                 frequence_penalty:None, 
                 presence_penalty:None, 
                 temperature:None, 
-                top_p:None):
+                top_p:None,
+                custom_prompt_file:None):
       self.model = model
       self.context_tokens = context_tokens
       self.max_tokens = max_tokens
@@ -35,15 +36,16 @@ class _RequestBuilder:
       self.presence_penalty = presence_penalty
       self.temperature = temperature
       self.top_p = top_p
+      self.custom_prompt_file = custom_prompt_file
 
       logging.info("warming up prompt cache")
-      _generate_messages(self.model, self.context_tokens, self.max_tokens)
+      _generate_messages(self.model, self.context_tokens, self.max_tokens, self.custom_prompt_file)
 
    def __iter__(self) -> Iterator[dict]:
       return self
 
    def __next__(self) -> (dict, int):
-      messages, messages_tokens = _generate_messages(self.model, self.context_tokens, self.max_tokens)
+      messages, messages_tokens = _generate_messages(self.model, self.context_tokens, self.max_tokens, self.custom_prompt_file)
       body = {"messages":messages}
       if self.max_tokens is not None:
          body["max_tokens"] = self.max_tokens
@@ -94,7 +96,9 @@ def load(args):
       frequence_penalty=args.frequency_penalty,
       presence_penalty=args.presence_penalty,
       temperature=args.temperature,
-      top_p=args.top_p)
+      top_p=args.top_p,
+      custom_prompt_file=args.custom_prompt_file
+      )
 
    logging.info("starting load...")
 
@@ -157,12 +161,55 @@ def read_input_messages(file_name: str):
     with open(file_name, 'r', encoding='utf-8') as file:
         return file.readlines()
 
+CACHED_PROMPT=""
+CACHED_MESSAGES_TOKENS=0
+def _generate_random_messages(model:str, tokens:int, max_tokens:int=None) -> ([dict], int):
+   """
+   Generate `messages` array based on tokens and max_tokens.
+   Returns Tuple of messages array and actual context token count.
+   """
+   global CACHED_PROMPT
+   global CACHED_MESSAGES_TOKENS
+   try:
+      r = wonderwords.RandomWord()
+      messages = [{"role":"user", "content":str(time.time()) + " "}]
+      if max_tokens is not None:
+         messages.append({"role":"user", "content":str(time.time()) + f" write a long essay about life in at least {max_tokens} tokens"})
+      messages_tokens = 0
+
+      if len(CACHED_PROMPT) > 0:
+         messages[0]["content"] += CACHED_PROMPT
+         messages_tokens = CACHED_MESSAGES_TOKENS
+      else:
+         prompt = ""
+         base_prompt = messages[0]["content"]
+         while True:
+            messages_tokens = num_tokens_from_messages(messages, model)
+            remaining_tokens = tokens - messages_tokens
+            if remaining_tokens <= 0:
+               break
+            prompt += " ".join(r.random_words(amount=math.ceil(remaining_tokens/4))) + " "
+            messages[0]["content"] = base_prompt + prompt
+
+         CACHED_PROMPT = prompt
+         CACHED_MESSAGES_TOKENS = messages_tokens
+
+   except Exception as e:
+      print (e)
+
+   return (messages, messages_tokens)
+
 input_messages_cache = None
 
-def _generate_messages(model: str, tokens: int, max_tokens: int = None) -> ([dict], int):
+def _generate_messages(model: str, tokens: int, max_tokens: int = None, custom_prompt_file: str = None) -> ([dict], int):
     """
     Returns Tuple of messages array and actual context token count.
     """
+    if custom_prompt_file=="none" :
+      print("No custom_prompt_file input, using random generated input prompt") 
+      return _generate_random_messages(model, tokens, max_tokens)
+
+    print(f"Custom_prompt_file input:{custom_prompt_file}") 
     global input_messages_cache
     try:
         messages = []
@@ -180,7 +227,7 @@ def _generate_messages(model: str, tokens: int, max_tokens: int = None) -> ([dic
         messages = []
         messages_tokens = 0
 
-    return messages, messages_tokens   
+    return messages, messages_tokens
  
 def _validate(args):
     if len(args.api_version) == 0:
@@ -200,7 +247,7 @@ def _validate(args):
     if args.shape_profile == "custom":
        if args.context_tokens < 1:
           raise ValueError("context-tokens must be specified with shape=custom")
-    if args.custom-prompt < 0:
+    if args.custom_prompt_file is None:
        raise ValueError("need to set the input prompt content file")
     if args.max_tokens is not None and args.max_tokens < 0:
        raise ValueError("max-tokens must be > 0")
