@@ -93,9 +93,11 @@ def load(args):
    logging.info(f"using shape profile {args.shape_profile}: context tokens: {context_tokens}, max tokens: {max_tokens}")
 
    if args.custom_prompt_file=="none" :
-     print("No custom_prompt_file input, using random generated input prompt") 
+     logging.info("No custom_prompt_file input, using random generated input prompt") 
    else:
-     print(f"Custom_prompt_file input:{args.custom_prompt_file}") 
+     if not os.path.exists(args.custom_prompt_file):
+        raise FileNotFoundError(f"The file '{args.custom_prompt_file}' does not exist.")
+     logging.info(f"Custom_prompt_file input:{args.custom_prompt_file}") 
 
    request_builder = _RequestBuilder("gpt-4-0613", context_tokens,
       max_tokens=max_tokens,
@@ -167,8 +169,11 @@ def read_input_messages(file_name: str):
     Read messages from a file, each line is considered a separate message.
     Returns a list of messages.
     """
-    with open(file_name, 'r', encoding='utf-8') as file:
+    try:
+      with open(file_name, 'r', encoding='utf-8') as file:
         return file.readlines()
+    except Exception as e:
+        raise IOError(f"An error occurred while reading the file: {e}") 
 
 CACHED_PROMPT=""
 CACHED_MESSAGES_TOKENS=0
@@ -215,16 +220,14 @@ def _generate_messages(model: str, tokens: int, max_tokens: int = None, custom_p
     Returns Tuple of messages array and actual context token count.
     """
     if custom_prompt_file=="none" :
-      # print("No custom_prompt_file input, using random generated input prompt") 
       return _generate_random_messages(model, tokens, max_tokens)
 
-   #  print(f"Custom_prompt_file input:{custom_prompt_file}") 
     global input_messages_cache
     try:
         messages = []
 
         if input_messages_cache is None:
-            input_messages_cache = read_input_messages('prompt_inputs.txt')
+            input_messages_cache = read_input_messages(custom_prompt_file)
 
         for line_number, input_message in enumerate(input_messages_cache, start=1):
             message = f"question number: {line_number}: {input_message}"
