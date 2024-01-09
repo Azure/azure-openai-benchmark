@@ -42,10 +42,9 @@ class _StatsAggregator(threading.Thread):
    terminate: threading.Event
 
    start_time: float = 0
+   processing_requests_count: int = 0
    total_requests_count: int = 0
    total_failed_count: int = 0
-   requests_count: int = 0
-   failed_count: int = 0
    throttled_count: int = 0
 
    request_timestamps = _Samples()
@@ -58,13 +57,15 @@ class _StatsAggregator(threading.Thread):
    generated_tokens = _Samples()
    utilizations = _Samples()
 
-   def __init__(self, dump_duration:float=5, window_duration:float=60, expected_gen_tokens: Optional[int] = None, json_output=False, *args,**kwargs):
+   def __init__(self, clients:int, dump_duration:float=5, window_duration:float=60, expected_gen_tokens: Optional[int] = None, json_output=False, *args,**kwargs):
       """
+      :param clients: number of clients being used in testing.
       :param dump_duration: duration in seconds to dump current aggregates.
       :param window_duration: duration of sliding window in second to consider for aggregation.
       :param expected_gen_tokens: number of tokens expected in each response.
       :param json_output: whether to dump periodic stats as json or human readable.
       """
+      self.clients = clients
       self.dump_duration = dump_duration
       self.json_output = json_output
       self.window_duration = window_duration
@@ -84,6 +85,15 @@ class _StatsAggregator(threading.Thread):
 
    def stop(self):
       self.terminate.set()
+      # Dump one more time to ensure we include the final request
+      self._dump()
+
+   def record_new_request(self):
+      """
+      Records a new request, so that the number of processing requests is known.
+      """
+      with self.lock:
+         self.processing_requests_count += 1
 
    def aggregate_request(self, stats: RequestStats):
       """
@@ -91,16 +101,22 @@ class _StatsAggregator(threading.Thread):
       :param stats: request stats object.
       """
       with self.lock:
-         self.requests_count += 1
+         self.processing_requests_count -= 1
          self.total_requests_count += 1
          self.call_tries._append(stats.request_start_time, stats.calls)
          if stats.response_status_code != 200:
-            self.failed_count += 1
             self.total_failed_count += 1
             if stats.response_status_code == 429:
                self.throttled_count += 1
          else:
-            self.request_latency._append(stats.request_start_time, stats.response_end_time - stats.request_start_time)
+            request_latency = stats.response_end_time - stats.request_start_time
+            self.request_latency._append(stats.request_start_time, request_latency)
+            if request_latency > self.window_duration:
+               logging.warning((
+                     f"request completed in {round(request_latency, 2)} seconds, while aggregation-window is {round(self.window_duration, 2)} "
+                     "seconds, consider increasing aggregation-window to at least 2x your typical request latency."
+                  )
+               )   
             self.request_timestamps._append(stats.request_start_time, stats.request_start_time)
             self.response_latencies._append(stats.request_start_time, stats.response_time - stats.request_start_time)
             self.first_token_latencies._append(stats.request_start_time, stats.first_token_time - stats.request_start_time)
@@ -148,14 +164,18 @@ class _StatsAggregator(threading.Thread):
                   " (tpm, ttft & tbt stats will still be accurate)."
                )
             )
+         # Handle the 1x extra processing_request due to next request being queued
+         processing_requests_count = min(self.clients, self.processing_requests_count)
          if self.json_output:
             j = {
                "run_seconds": run_seconds,
                "timestamp": timestamp,
                "rpm": rpm,
-               "requests": self.requests_count,
-               "failures": self.failed_count,
+               "processing": processing_requests_count,
+               "completed": self.total_requests_count,
+               "failures": self.total_failed_count,
                "throttled": self.throttled_count,
+               "requests": self.total_requests_count,
                "tpm": {
                   "context": context_per_minute,
                   "gen": gen_per_minute,
@@ -186,7 +206,7 @@ class _StatsAggregator(threading.Thread):
             }
             print(json.dumps(j), flush=True)
          else:
-            print(f"{timestamp} rpm: {rpm:<5} requests: {self.requests_count:<5} failures: {self.failed_count:<4} throttled: {self.throttled_count:<4} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} context_tpr_avg {context_tpr_avg:<4} gen_tpr_10th {gen_tpr_10th:<4} gen_tpr_avg {gen_tpr_avg:<4} gen_tpr_90th {gen_tpr_90th:<4} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
+            print(f"{timestamp} rpm: {rpm:<5} processing: {processing_requests_count:<4} completed: {self.total_requests_count:<5} failures: {self.total_failed_count:<4} throttled: {self.throttled_count:<4} requests: {self.total_requests_count:<5} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} context_tpr_avg {context_tpr_avg:<4} gen_tpr_10th {gen_tpr_10th:<4} gen_tpr_avg {gen_tpr_avg:<4} gen_tpr_90th {gen_tpr_90th:<4} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
 
    def _slide_window(self):
       with self.lock:

@@ -1,11 +1,12 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import time
-import aiohttp
-import logging
 import asyncio
+import logging
+import time
 from typing import Optional
+
+import aiohttp
 import backoff
 
 # TODO: switch to using OpenAI client library once new headers are exposed.
@@ -119,8 +120,8 @@ class OAIRequester:
     async def _handle_response(self, response: aiohttp.ClientResponse, stats: RequestStats):
         async with response:
             stats.response_time = time.time()
-            async for l in response.content:
-                if not l.startswith(b'data:'):
+            async for line in response.content:
+                if not line.startswith(b'data:'):
                     continue
                 if stats.first_token_time is None:
                     stats.first_token_time = time.time()

@@ -122,9 +122,11 @@ Note: With the default prompting strategy, OpenAI models will typically return c
 |-|-|-|-|
 |`time`|Time offset in seconds since the start of the test.|no|`120`|
 |`rpm`|Successful Requests Per Minute. Note that it may be less than `--rate` as it counts completed requests.|yes|`12`|
-|`requests`|Total number of requests made.|no|`1233`|
+|`processing`|Total number of requests currently being processed by the endpoint.|no|`100`|
+|`completed`|Total number of completed requests.|no|`100`|
 |`failures`|Total number of failed requests out of `requests`.|no|`100`|
 |`throttled`|Total number of throttled requests out of `requests`.|no|`100`|
+|`requests`|Deprecated in favor of `completed` field (output values of both fields are the same)|no|`1233`|
 |`ctx_tpm`|Number of context Tokens Per Minute.|yes|`1200`|
 |`gen_tpm`|Number of generated Tokens Per Minute.|yes|`156`|
 |`ttft_avg`|Average time in seconds from the beginning of the request until the first token was received.|yes|`0.122`|
