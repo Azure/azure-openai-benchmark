@@ -123,6 +123,7 @@ class _StatsAggregator(threading.Thread):
             tokens_per_minute += context_per_minute
          if gen_per_minute != "n/a":
             tokens_per_minute += gen_per_minute
+         context_tpr_avg = int(np.sum(self.context_tokens._values()) / self.context_tokens._len()) if self.context_tokens._len() > 0 else "n/a"
          gen_tpr_avg = int(np.sum(self.generated_tokens._values()) / self.generated_tokens._len()) if self.generated_tokens._len() > 0 else "n/a"
          gen_tpr_10th = int(np.percentile(self.generated_tokens._values(), 10)) if self.generated_tokens._len() > 1 else "n/a"
          gen_tpr_90th = int(np.percentile(self.generated_tokens._values(), 90)) if self.generated_tokens._len() > 1 else "n/a"
@@ -143,7 +144,7 @@ class _StatsAggregator(threading.Thread):
             logging.warning(
                (
                   f"average tokens per response is {gen_tpr_avg}, compared to requested max_tokens of {self.expected_gen_tokens}."
-                  " this may mean measured rpm and e2e request latency are higher here than in real-world workloads"
+                  " this may mean measured rpm is higher and e2e request latency is faster than in real-world workloads"
                   " (tpm, ttft & tbt stats will still be accurate)."
                )
             )
@@ -172,6 +173,7 @@ class _StatsAggregator(threading.Thread):
                   "avg": tbt_avg,
                   "95th": tbt_95th,
                },
+               "context_tpr_avg": context_tpr_avg,
                "gen_tpr": {
                   "10th": gen_tpr_10th,
                   "avg": gen_tpr_avg,
@@ -184,7 +186,7 @@ class _StatsAggregator(threading.Thread):
             }
             print(json.dumps(j), flush=True)
          else:
-            print(f"{timestamp} rpm: {rpm:<5} requests: {self.requests_count:<5} failures: {self.failed_count:<4} throttled: {self.throttled_count:<4} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} gen_tpr_10th {gen_tpr_10th:<4} gen_tpr_avg {gen_tpr_avg:<4} gen_tpr_90th {gen_tpr_90th:<4} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
+            print(f"{timestamp} rpm: {rpm:<5} requests: {self.requests_count:<5} failures: {self.failed_count:<4} throttled: {self.throttled_count:<4} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} context_tpr_avg {context_tpr_avg:<4} gen_tpr_10th {gen_tpr_10th:<4} gen_tpr_avg {gen_tpr_avg:<4} gen_tpr_90th {gen_tpr_90th:<4} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
 
    def _slide_window(self):
       with self.lock:
