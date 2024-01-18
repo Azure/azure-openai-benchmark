@@ -38,7 +38,7 @@ Consider the following guidelines when creating your benchmark tests
 
 ## Usage examples
 
-### Common Scenarios for :
+### Common Scenarios:
 The table below provides an example prompt & generation size we have seen with some customers. Actual sizes will vary significantly based on your overall architecture For example,the amount of data grounding you pull into the prompt as part of a chat session can increase the prompt size significantly.
 
 | Scenario | Prompt Size | Completion Size | Calls per minute | Provisioned throughput units (PTU) required |

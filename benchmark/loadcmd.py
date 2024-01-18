@@ -4,10 +4,9 @@
 import logging
 import os
 import sys
-from typing import Iterable, Iterator, Type
+from typing import Iterable, Iterator
 
 import aiohttp
-import wonderwords
 
 from benchmark.messagegeneration import (
     BaseMessagesGenerator,
