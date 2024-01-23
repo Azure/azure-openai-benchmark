@@ -87,7 +87,7 @@ class OAIRequester:
             TELEMETRY_USER_AGENT_HEADER: USER_AGENT,
         }
         stats.request_start_time = time.time()
-        while stats.calls == 0 or (self.backoff and time.time() - stats.request_start_time < MAX_RETRY_SECONDS):
+        while stats.calls == 0 or time.time() - stats.request_start_time < MAX_RETRY_SECONDS:
             stats.calls += 1
             response = await session.post(self.url, headers=headers, json=body)
             stats.response_status_code = response.status
@@ -95,7 +95,7 @@ class OAIRequester:
             self._read_utilization(response, stats)
             if response.status != 429:
                 break
-            if RETRY_AFTER_MS_HEADER in response.headers:
+            if self.backoff and RETRY_AFTER_MS_HEADER in response.headers:
                 try:
                     retry_after_str = response.headers[RETRY_AFTER_MS_HEADER]
                     retry_after_ms = float(retry_after_str)
