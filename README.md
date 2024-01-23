@@ -59,7 +59,7 @@ Or see the [pre-configured shape-profiles below](#shape-profiles).
 
 ### Run samples 
 
-During a run, statistics are periodically output every 60s to `stdout` while logs are output to `stderr`. Some metrics may not show up immediately due to lack of data. 
+During a run, statistics are output every second to `stdout` while logs are output to `stderr`. Some metrics may not show up immediately due to lack of data. 
 
 **Run load test at 60 RPM with exponential retry back-off**
 
