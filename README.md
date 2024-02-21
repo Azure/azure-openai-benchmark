@@ -2,9 +2,9 @@
 
 > :warning: **Code in this repo is written for testing purposes and should not be used in production**
 
-The Azure OpenAI Benchmarking tool is designed to aid customers in benchmarking their provisioned-throughput deployments. Provisioned throughput deployments provide a set amount of model compute. But determining the exact performance for you application is dependent on several variables such as: prompt size, generation size and call rate. 
+The Azure OpenAI Benchmarking tool is designed to aid customers in benchmarking their provisioned-throughput deployments. Provisioned throughput deployments provide a set amount of model compute. But determining the exact performance for you application is dependent on several variables such as: prompt size, generation size and call rate.
 
-The benchmarking tool provides a simple way to run test traffic on your deploymnet and validate the throughput for your traffic workloads. The script will output key performance statistics including the average and 95th percentile latencies and utilization of the deployment. 
+The benchmarking tool provides a simple way to run test traffic on your deploymnet and validate the throughput for your traffic workloads. The script will output key performance statistics including the average and 95th percentile latencies and utilization of the deployment.
 
 You can use this tool to experiment with total throughput at 100% utilization across different traffic patterns for a ```Provisioned-Managed``` deployment type. These tests allow you to better optimize your solution design by adjusting the prompt size, generation size and PTUs deployed
 
@@ -57,9 +57,9 @@ The table below provides an example prompt & generation size we have seen with s
 
 Or see the [pre-configured shape-profiles below](#shape-profiles).
 
-### Run samples 
+### Run samples
 
-During a run, statistics are output every second to `stdout` while logs are output to `stderr`. Some metrics may not show up immediately due to lack of data. 
+During a run, statistics are output every second to `stdout` while logs are output to `stderr`. Some metrics may not show up immediately due to lack of data.
 
 **Run load test at 60 RPM with exponential retry back-off**
 
@@ -73,9 +73,9 @@ $ python -m benchmark.bench load \
 2023-10-19 18:21:06 INFO     using shape profile balanced: context tokens: 500, max tokens: 500
 2023-10-19 18:21:06 INFO     warming up prompt cache
 2023-10-19 18:21:06 INFO     starting load...
-2023-10-19 18:21:06 rpm: 1.0   requests: 1     failures: 0    throttled: 0    ctx tpm: 501.0  gen tpm: 103.0  ttft avg: 0.736  ttft 95th: n/a    tbt avg: 0.088  tbt 95th: n/a    e2e avg: 1.845  e2e 95th: n/a    util avg: 0.0%   util 95th: n/a   
-2023-10-19 18:21:07 rpm: 5.0   requests: 5     failures: 0    throttled: 0    ctx tpm: 2505.0 gen tpm: 515.0  ttft avg: 0.937  ttft 95th: 1.321  tbt avg: 0.042  tbt 95th: 0.043  e2e avg: 1.223 e2e 95th: 1.658 util avg: 0.8%   util 95th: 1.6%  
-2023-10-19 18:21:08 rpm: 8.0   requests: 8     failures: 0    throttled: 0    ctx tpm: 4008.0 gen tpm: 824.0  ttft avg: 0.913  ttft 95th: 1.304  tbt avg: 0.042  tbt 95th: 0.043  e2e avg: 1.241 e2e 95th: 1.663 util avg: 1.3%   util 95th: 2.6% 
+2023-10-19 18:21:06 rpm: 1.0   requests: 1     failures: 0    throttled: 0    ctx tpm: 501.0  gen tpm: 103.0  ttft avg: 0.736  ttft 95th: n/a    tbt avg: 0.088  tbt 95th: n/a    e2e avg: 1.845  e2e 95th: n/a    util avg: 0.0%   util 95th: n/a
+2023-10-19 18:21:07 rpm: 5.0   requests: 5     failures: 0    throttled: 0    ctx tpm: 2505.0 gen tpm: 515.0  ttft avg: 0.937  ttft 95th: 1.321  tbt avg: 0.042  tbt 95th: 0.043  e2e avg: 1.223 e2e 95th: 1.658 util avg: 0.8%   util 95th: 1.6%
+2023-10-19 18:21:08 rpm: 8.0   requests: 8     failures: 0    throttled: 0    ctx tpm: 4008.0 gen tpm: 824.0  ttft avg: 0.913  ttft 95th: 1.304  tbt avg: 0.042  tbt 95th: 0.043  e2e avg: 1.241 e2e 95th: 1.663 util avg: 1.3%   util 95th: 2.6%
 ```
 
 **Load test with custom request shape**
@@ -120,7 +120,7 @@ The tool supports four different shape profiles via command line option `--shape
 |`balanced`|[default] Balanced count of context and generation tokens. Should be representative of typical workloads.|500|500|
 |`context`|Represents workloads with larger context sizes compared to generation. For example, chat assistants.|2000|200|
 |`generation`|Represents workloads with larger generation and smaller contexts. For example, question answering.|500|1000|
-|`custom`|Allows specifying custom values for context size (`--context-tokens`) and max generation tokens (`--max-tokens`).|||  
+|`custom`|Allows specifying custom values for context size (`--context-tokens`) and max generation tokens (`--max-tokens`).|||
 
 Note: With the default prompting strategy, OpenAI models will typically return completions of a max of 700-1200 tokens. If setting `max_tokens` above 750, be aware that the results for `rpm` may be higher, and `e2e` latency lower, than if the model was returning completions of size `max_tokens` in every response. Refer to the `gen_tpr` stats at the end of each run to see how many tokens were generated across responses.
 
@@ -141,9 +141,8 @@ Note: With the default prompting strategy, OpenAI models will typically return c
 |`ttft_95th`|95th percentile of time in seconds from the beginning of the request until the first token was received.|yes|`0.130`|
 |`tbt_avg`|Average time in seconds between two consequitive generated tokens.|yes|`0.018`|
 |`tbt_95th`|95th percentail of time in seconds between two consequitive generated tokens.|yes|`0.021`|
-|`gen_tpr_10th`|10th percentile of number of generated tokens per model response.|yes|`389`|
+|`context_tpr_avg`|Average number of context tokens used in a model request.|yes|`509`|
 |`gen_tpr_avg`|Average number of generated tokens per model response.|yes|`509`|
-|`gen_tpr_90th`|90th percentile of number of generated tokens per model response.|yes|`626`|
 |`e2e_avg`|Average end to end request time.|yes|`1.2`|
 |`e2e_95th`|95th percentile of end to end request time.|yes|`1.5`|
 |`util_avg`|Average deployment utilization percentage as reported by the service.|yes|`89.3%`|
@@ -167,8 +166,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Trademarks
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
+trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
