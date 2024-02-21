@@ -144,6 +144,8 @@ The tool supports four different shape profiles via command line option `--shape
 |`util_avg`|Average deployment utilization percentage as reported by the service.|yes|`89.3%`|
 |`util_95th`|95th percentile of deployment utilization percentage as reported by the service.|yes|`91.2%`|
 
+Note: Prior to the benchmarking run reaching `aggregation-window` in elapsed time, all sliding window stats will be calculated over a dynamic window, equal to the time elapsed since starting the test. This ensures RPM/TPM stats are relatively accurate prior to the test reaching completion, including when a test ends early due to reaching the request limit.
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a

@@ -126,11 +126,13 @@ class _StatsAggregator(threading.Thread):
    def _dump(self):
       with self.lock:
          run_seconds = round(time.time() - self.start_time)
+         # Use dynamic aggregation window for when elapsed duration < window_duration
+         dynamic_window = min(run_seconds, self.window_duration)
          timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
          e2e_latency_avg = round(np.average(self.request_latency._values()), 3) if self.request_latency._len() > 0 else "n/a"
          e2e_latency_95th = round(np.percentile(self.request_latency._values(), 95), 3) if self.request_latency._len() > 1 else "n/a"
-         context_per_minute = round(60.0 * np.sum(self.context_tokens._values()) / self.window_duration, 0) if self.context_tokens._len() > 0 else "n/a"
-         gen_per_minute = round(60.0 * np.sum(self.generated_tokens._values()) / self.window_duration, 0) if self.generated_tokens._len() > 0 else "n/a"
+         context_per_minute = round(60.0 * np.sum(self.context_tokens._values()) / dynamic_window, 0) if self.context_tokens._len() > 0 else "n/a"
+         gen_per_minute = round(60.0 * np.sum(self.generated_tokens._values()) / dynamic_window, 0) if self.generated_tokens._len() > 0 else "n/a"
          tokens_per_minute = 0
          if context_per_minute != "n/a":
             tokens_per_minute += context_per_minute
@@ -142,7 +144,7 @@ class _StatsAggregator(threading.Thread):
          tbt_95th = round(np.percentile(self.token_latencies._values(), 95), 3) if self.token_latencies._len() > 1 else "n/a"
          util_avg = f"{round(np.average(self.utilizations._values()), 1)}%" if self.utilizations._len() > 0 else "n/a"
          util_95th = f"{round(np.percentile(self.utilizations._values(), 95), 1)}%" if self.utilizations._len() > 1 else "n/a"
-         rpm = round(60.0 * self.request_timestamps._len() / self.window_duration, 1)  if self.request_timestamps._len() > 0 else "n/a"
+         rpm = round(60.0 * self.request_timestamps._len() / dynamic_window, 1)  if self.request_timestamps._len() > 0 else "n/a"
          # Handle the 1x extra processing_request due to next request being queued
          processing_requests_count = min(self.clients, self.processing_requests_count)
          if self.json_output:
