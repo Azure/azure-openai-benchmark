@@ -14,7 +14,7 @@ import backoff
 REQUEST_ID_HEADER = "apim-request-id"
 UTILIZATION_HEADER = "azure-openai-deployment-utilization"
 RETRY_AFTER_MS_HEADER = "retry-after-ms"
-MAX_RETRY_SECONDS = 5.0
+MAX_RETRY_SECONDS = 60.0
 
 TELEMETRY_USER_AGENT_HEADER = "x-ms-useragent"
 USER_AGENT = "aoai-benchmark"
@@ -45,12 +45,11 @@ class OAIRequester:
     statistics.
     :param api_key: Azure OpenAI resource endpoint key.
     :param url: Full deployment URL in the form of https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completins?api-version=<api_version>
-    :param timeout: Timeout for each request.
+    :param backoff: Whether to retry throttled or unsuccessful requests.
     """
-    def __init__(self, api_key: str, url: str, timeout=None, backoff=False):
+    def __init__(self, api_key: str, url: str, backoff=False):
         self.api_key = api_key
         self.url = url
-        self.timeout = timeout
         self.backoff = backoff
 
     async def call(self, session:aiohttp.ClientSession, body: dict) -> RequestStats:
@@ -88,7 +87,7 @@ class OAIRequester:
             TELEMETRY_USER_AGENT_HEADER: USER_AGENT,
         }
         stats.request_start_time = time.time()
-        while time.time() - stats.request_start_time < MAX_RETRY_SECONDS:
+        while stats.calls == 0 or time.time() - stats.request_start_time < MAX_RETRY_SECONDS:
             stats.calls += 1
             response = await session.post(self.url, headers=headers, json=body)
             stats.response_status_code = response.status
@@ -96,7 +95,7 @@ class OAIRequester:
             self._read_utilization(response, stats)
             if response.status != 429:
                 break
-            if RETRY_AFTER_MS_HEADER in response.headers:
+            if self.backoff and RETRY_AFTER_MS_HEADER in response.headers:
                 try:
                     retry_after_str = response.headers[RETRY_AFTER_MS_HEADER]
                     retry_after_ms = float(retry_after_str)
