@@ -8,12 +8,15 @@ from typing import Optional
 
 import aiohttp
 import backoff
+from http import HTTPStatus
 
 # TODO: switch to using OpenAI client library once new headers are exposed.
 
 REQUEST_ID_HEADER = "apim-request-id"
 UTILIZATION_HEADER = "azure-openai-deployment-utilization"
 RETRY_AFTER_MS_HEADER = "retry-after-ms"
+RETRY_AFTER_S_HEADER = "retry-after"  
+
 MAX_RETRY_SECONDS = 60.0
 
 TELEMETRY_USER_AGENT_HEADER = "x-ms-useragent"
@@ -37,7 +40,7 @@ class RequestStats:
 
 def _terminal_http_code(e) -> bool:
     # we only retry on 429
-    return e.response.status != 429
+    return e.response.status != HTTPStatus.TOO_MANY_REQUESTS
 
 class OAIRequester:
     """
@@ -92,28 +95,25 @@ class OAIRequester:
             response = await session.post(self.url, headers=headers, json=body)
             stats.response_status_code = response.status
             # capture utilization in all cases, if found
-            self._read_utilization(response, stats)
-            if response.status != 429:
-                break
-            if self.backoff and RETRY_AFTER_MS_HEADER in response.headers:
-                try:
-                    retry_after_str = response.headers[RETRY_AFTER_MS_HEADER]
-                    retry_after_ms = float(retry_after_str)
-                    logging.debug(f"retry-after sleeping for {retry_after_ms}ms")
-                    await asyncio.sleep(retry_after_ms/1000.0)
-                except ValueError as e:
-                    logging.warning(f"unable to parse retry-after header value: {UTILIZATION_HEADER}={retry_after_str}: {e}")   
-                    # fallback to backoff
+            self._read_utilization_header(response, stats)
+
+            if response.status == HTTPStatus.TOO_MANY_REQUESTS:
+                retry_after_ms = self._read_retry_after_headers(response)
+                
+                if retry_after_ms is None:
                     break
+                
+                if self.backoff: 
+                    logging.debug(f"retry-after sleeping for {retry_after_ms}ms")  
+                    await asyncio.sleep(retry_after_ms/1000.0)
             else:
-                # fallback to backoff
                 break
 
-        if response.status != 200 and response.status != 429:
+        if response.status != HTTPStatus.OK and response.status != HTTPStatus.TOO_MANY_REQUESTS:
             logging.warning(f"call failed: {REQUEST_ID_HEADER}={response.headers[REQUEST_ID_HEADER]} {response.status}: {response.reason}")
         if self.backoff:
             response.raise_for_status()
-        if response.status == 200:
+        if response.status == HTTPStatus.OK:
             await self._handle_response(response, stats)
         
     async def _handle_response(self, response: aiohttp.ClientResponse, stats: RequestStats):
@@ -129,7 +129,7 @@ class OAIRequester:
                 stats.generated_tokens += 1
             stats.response_end_time = time.time()
 
-    def _read_utilization(self, response: aiohttp.ClientResponse, stats: RequestStats):
+    def _read_utilization_header(self, response: aiohttp.ClientResponse, stats: RequestStats):
         if UTILIZATION_HEADER in response.headers:
             util_str = response.headers[UTILIZATION_HEADER]
             if len(util_str) == 0:
@@ -141,5 +141,23 @@ class OAIRequester:
                     stats.deployment_utilization = float(util_str[:-1])
                 except ValueError as e:
                     logging.warning(f"unable to parse utilization header value: {UTILIZATION_HEADER}={util_str}: {e}")            
-
+    
+    def _read_retry_after_headers(self, response: aiohttp.ClientResponse):
+        retry_after_ms = None
+        if RETRY_AFTER_MS_HEADER in response.headers:
+            try:
+                retry_after_str = response.headers[RETRY_AFTER_MS_HEADER]
+                retry_after_ms = float(retry_after_str)
+            except ValueError as e:
+                logging.warning(f"unable to parse {RETRY_AFTER_MS_HEADER} header value: {RETRY_AFTER_MS_HEADER}={retry_after_str}: {e}")   
+        
+        elif RETRY_AFTER_S_HEADER in response.headers:  
+            try:  
+                retry_after_str = response.headers[RETRY_AFTER_S_HEADER]
+                retry_after_s = float(retry_after_str)  
+                retry_after_ms = retry_after_s * 1000  
+            except ValueError as e:  
+                logging.warning(f"unable to parse {RETRY_AFTER_S_HEADER} header value: {RETRY_AFTER_S_HEADER}={retry_after_str}: {e}")  
+        
+        return retry_after_ms   
 
