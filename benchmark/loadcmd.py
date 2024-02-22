@@ -54,7 +54,7 @@ class _RequestBuilder:
       if self.frequency_penalty is not None:
          body["frequency_penalty"] = self.frequency_penalty
       if self.presence_penalty is not None:
-         body["presenece_penalty"] = self.presence_penalty
+         body["presence_penalty"] = self.presence_penalty
       if self.temperature is not None:
          body["temperature"] = self.temperature
       if self.top_p is not None:
