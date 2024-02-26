@@ -8,7 +8,6 @@ from typing import Optional
 
 import aiohttp
 import backoff
-from http import HTTPStatus
 
 # TODO: switch to using OpenAI client library once new headers are exposed.
 
@@ -40,7 +39,7 @@ class RequestStats:
 
 def _terminal_http_code(e) -> bool:
     # we only retry on 429
-    return e.response.status != HTTPStatus.TOO_MANY_REQUESTS
+    return e.response.status != 429
 
 class OAIRequester:
     """
@@ -97,7 +96,7 @@ class OAIRequester:
             # capture utilization in all cases, if found
             self._read_utilization_header(response, stats)
 
-            if response.status == HTTPStatus.TOO_MANY_REQUESTS:
+            if response.status == 429:
                 retry_after_ms = self._read_retry_after_headers(response)
                 
                 if retry_after_ms is None:
@@ -109,11 +108,11 @@ class OAIRequester:
             else:
                 break
 
-        if response.status != HTTPStatus.OK and response.status != HTTPStatus.TOO_MANY_REQUESTS:
+        if response.status != 200 and response.status != 429:
             logging.warning(f"call failed: {REQUEST_ID_HEADER}={response.headers[REQUEST_ID_HEADER]} {response.status}: {response.reason}")
         if self.backoff:
             response.raise_for_status()
-        if response.status == HTTPStatus.OK:
+        if response.status == 200:
             await self._handle_response(response, stats)
         
     async def _handle_response(self, response: aiohttp.ClientResponse, stats: RequestStats):
