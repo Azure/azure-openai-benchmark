@@ -15,7 +15,6 @@ REQUEST_ID_HEADER = "apim-request-id"
 UTILIZATION_HEADER = "azure-openai-deployment-utilization"
 RETRY_AFTER_MS_HEADER = "retry-after-ms"
 RETRY_AFTER_S_HEADER = "retry-after"  
-
 MAX_RETRY_SECONDS = 60.0
 
 TELEMETRY_USER_AGENT_HEADER = "x-ms-useragent"
