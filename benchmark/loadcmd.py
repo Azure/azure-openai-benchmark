@@ -25,7 +25,7 @@ class _RequestBuilder:
    def __init__(self, model:str, context_tokens:int,
                 max_tokens:None, 
                 completions:None, 
-                frequence_penalty:None, 
+                frequency_penalty:None, 
                 presence_penalty:None, 
                 temperature:None, 
                 top_p:None):
@@ -33,7 +33,7 @@ class _RequestBuilder:
       self.context_tokens = context_tokens
       self.max_tokens = max_tokens
       self.completions = completions
-      self.frequency_penalty = frequence_penalty
+      self.frequency_penalty = frequency_penalty
       self.presence_penalty = presence_penalty
       self.temperature = temperature
       self.top_p = top_p
@@ -54,7 +54,7 @@ class _RequestBuilder:
       if self.frequency_penalty is not None:
          body["frequency_penalty"] = self.frequency_penalty
       if self.presence_penalty is not None:
-         body["presenece_penalty"] = self.presence_penalty
+         body["presence_penalty"] = self.presence_penalty
       if self.temperature is not None:
          body["temperature"] = self.temperature
       if self.top_p is not None:
@@ -93,7 +93,7 @@ def load(args):
    request_builder = _RequestBuilder("gpt-4-0613", context_tokens,
       max_tokens=max_tokens,
       completions=args.completions,
-      frequence_penalty=args.frequency_penalty,
+      frequency_penalty=args.frequency_penalty,
       presence_penalty=args.presence_penalty,
       temperature=args.temperature,
       top_p=args.top_p)
