@@ -105,7 +105,7 @@ def load(args):
       api_key=api_key,
       url=url,
       rate_limiter=rate_limiter,
-      backoff=args.retry=="exponential",
+      retry=args.retry,
       request_count=args.requests,
       duration=args.duration,
       aggregation_duration=args.aggregation_window,
@@ -116,7 +116,7 @@ def _run_load(request_builder: Iterable[dict],
               api_key: str,
               url: str,
               rate_limiter=None, 
-              backoff=False,
+              retry:str="none",
               duration=None, 
               aggregation_duration=60,
               request_count=None,
@@ -126,7 +126,7 @@ def _run_load(request_builder: Iterable[dict],
       dump_duration=1, 
       clients=max_concurrency,
       json_output=json_output)
-   requester = OAIRequester(api_key, url, backoff=backoff)
+   requester = OAIRequester(api_key, url, retry=retry)
 
    async def request_func(session:aiohttp.ClientSession):
       nonlocal aggregator
