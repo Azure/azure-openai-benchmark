@@ -141,8 +141,7 @@ class _StatsAggregator(threading.Thread):
             tokens_per_minute += context_per_minute
          if gen_per_minute != "n/a":
             tokens_per_minute += gen_per_minute
-         context_tpr_avg = int(np.sum(self.context_tokens._values()) / self.context_tokens._len()) if self.context_tokens._len() > 0 else "n/a"
-         gen_tpr_avg = int(np.sum(self.generated_tokens._values()) / self.generated_tokens._len()) if self.generated_tokens._len() > 0 else "n/a"
+         avg_gen_tokens = int(np.sum(self.generated_tokens._values()) / self.generated_tokens._len()) if self.generated_tokens._len() > 0 else "n/a"
          ttft_avg = round(np.average(self.first_token_latencies._values()), 3) if self.first_token_latencies._len() > 0 else "n/a"
          ttft_95th = round(np.percentile(self.first_token_latencies._values(), 95), 3) if self.first_token_latencies._len() > 1 else "n/a"
          tbt_avg = round(np.average(self.token_latencies._values()), 3) if self.token_latencies._len() > 0 else "n/a"
@@ -155,11 +154,11 @@ class _StatsAggregator(threading.Thread):
          if all((
             run_seconds % warning_period_secs == 0,
             self.expected_gen_tokens is not None,
-            isinstance(gen_tpr_avg, int)
-         )) and gen_tpr_avg < 0.9 * self.expected_gen_tokens:
+            isinstance(avg_gen_tokens, int)
+         )) and avg_gen_tokens < 0.9 * self.expected_gen_tokens:
             logging.warning(
                (
-                  f"average tokens per response is {gen_tpr_avg}, compared to requested max_tokens of {self.expected_gen_tokens}."
+                  f"average tokens per response is {avg_gen_tokens}, compared to requested max_tokens of {self.expected_gen_tokens}."
                   " this may mean measured rpm is higher and e2e request latency is faster than in real-world workloads"
                   " (tpm, ttft & tbt stats will still be accurate)."
                )
@@ -193,11 +192,8 @@ class _StatsAggregator(threading.Thread):
                   "avg": tbt_avg,
                   "95th": tbt_95th,
                },
-               "context_tpr": {
-                  "avg": context_tpr_avg,
-               },
-               "gen_tpr": {
-                  "avg": gen_tpr_avg,
+               "gen_tokens": {
+                  "avg": avg_gen_tokens,
                },
                "util": {
                   "avg": util_avg,
@@ -206,7 +202,7 @@ class _StatsAggregator(threading.Thread):
             }
             print(json.dumps(j), flush=True)
          else:
-            print(f"{timestamp} rpm: {rpm:<5} processing: {processing_requests_count:<4} completed: {self.total_requests_count:<5} failures: {self.total_failed_count:<4} throttled: {self.throttled_count:<4} requests: {self.total_requests_count:<5} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} context_tpr_avg {context_tpr_avg:<4} gen_tpr_avg {gen_tpr_avg:<4} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
+            print(f"{timestamp} rpm: {rpm:<5} processing: {processing_requests_count:<4} completed: {self.total_requests_count:<5} failures: {self.total_failed_count:<4} throttled: {self.throttled_count:<4} requests: {self.total_requests_count:<5} tpm: {tokens_per_minute:<6} ttft_avg: {ttft_avg:<6} ttft_95th: {ttft_95th:<6} tbt_avg: {tbt_avg:<6} tbt_95th: {tbt_95th:<6} e2e_avg: {e2e_latency_avg:<6} e2e_95th: {e2e_latency_95th:<6} avg_gen_tokens {avg_gen_tokens:<4} util_avg: {util_avg:<6} util_95th: {util_95th:<6}", flush=True)
 
    def _slide_window(self):
       with self.lock:

@@ -122,7 +122,7 @@ The tool supports four different shape profiles via command line option `--shape
 |`generation`|Represents workloads with larger generation and smaller contexts. For example, question answering.|500|1000|
 |`custom`|Allows specifying custom values for context size (`--context-tokens`) and max generation tokens (`--max-tokens`).|||
 
-Note: With the default prompting strategy, OpenAI models will typically return completions of a max of 700-1200 tokens. If setting `max_tokens` above 750, be aware that the results for `rpm` may be higher, and `e2e` latency lower, than if the model was returning completions of size `max_tokens` in every response. Refer to the `gen_tpr` stats at the end of each run to see how many tokens were generated across responses.
+Note: With the default prompting strategy, OpenAI models will typically return completions of a max of 700-1200 tokens. If setting `max_tokens` above 750, be aware that the results for `rpm` may be higher, and `e2e` latency lower, than if the model was returning completions of size `max_tokens` in every response. Refer to the `gen_tokens` stats at the end of each run to see how many tokens were generated across responses.
 
 ### Output fields
 
@@ -141,8 +141,7 @@ Note: With the default prompting strategy, OpenAI models will typically return c
 |`ttft_95th`|95th percentile of time in seconds from the beginning of the request until the first token was received.|yes|`0.130`|
 |`tbt_avg`|Average time in seconds between two consequitive generated tokens.|yes|`0.018`|
 |`tbt_95th`|95th percentail of time in seconds between two consequitive generated tokens.|yes|`0.021`|
-|`context_tpr_avg`|Average number of context tokens used in a model request.|yes|`509`|
-|`gen_tpr_avg`|Average number of generated tokens per model response.|yes|`509`|
+|`avg_gen_tokens`|Average number of generated tokens per model response.|yes|`509`|
 |`e2e_avg`|Average end to end request time.|yes|`1.2`|
 |`e2e_95th`|95th percentile of end to end request time.|yes|`1.5`|
 |`util_avg`|Average deployment utilization percentage as reported by the service.|yes|`89.3%`|
