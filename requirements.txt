@@ -6,3 +6,4 @@ backoff
 wonderwords
 asyncio
 aiohttp
+typing
