@@ -2,6 +2,8 @@
 
 > :warning: **Code in this repo is written for testing purposes and should not be used in production**
 
+> :warning: **This project does not support testing more than 900 PTUs. For larger instances please use other stress test tools like JMeter/Gatling/etc for stress testing.**
+
 The Azure OpenAI Benchmarking tool is designed to aid customers in benchmarking their provisioned-throughput deployments. Provisioned throughput deployments provide a set amount of model compute. But determining the exact performance for you application is dependent on several variables such as: prompt size, generation size and call rate. 
 
 The benchmarking tool provides a simple way to run test traffic on your deploymnet and validate the throughput for your traffic workloads. The script will output key performance statistics including the average and 95th percentile latencies and utilization of the deployment. 
