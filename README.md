@@ -86,7 +86,7 @@ $ python -m benchmark.bench load \
 $ python -m benchmark.bench load \
     --deployment gpt-4 \
     --rate 1 \
-    --shape custom \
+    --shape-profile custom \
     --context-tokens 1000 \
     --max-tokens 500 \
     https://myaccount.openai.azure.com
