@@ -45,12 +45,12 @@ class OAIRequester:
     statistics.
     :param api_key: Azure OpenAI resource endpoint key.
     :param url: Full deployment URL in the form of https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completins?api-version=<api_version>
-    :param backoff: Whether to retry throttled or unsuccessful requests.
+    :param retry: Whether to retry throttled or unsuccessful requests.
     """
-    def __init__(self, api_key: str, url: str, backoff=False):
+    def __init__(self, api_key: str, url: str, retry:str="none"):
         self.api_key = api_key
         self.url = url
-        self.backoff = backoff
+        self.retry = retry
 
     async def call(self, session:aiohttp.ClientSession, body: dict) -> RequestStats:
         """
@@ -95,7 +95,7 @@ class OAIRequester:
             self._read_utilization(response, stats)
             if response.status != 429:
                 break
-            if self.backoff and RETRY_AFTER_MS_HEADER in response.headers:
+            if (self.retry=="header-based" or self.retry=="all") and RETRY_AFTER_MS_HEADER in response.headers:
                 try:
                     retry_after_str = response.headers[RETRY_AFTER_MS_HEADER]
                     retry_after_ms = float(retry_after_str)
@@ -111,7 +111,7 @@ class OAIRequester:
 
         if response.status != 200 and response.status != 429:
             logging.warning(f"call failed: {REQUEST_ID_HEADER}={response.headers[REQUEST_ID_HEADER]} {response.status}: {response.reason}")
-        if self.backoff:
+        if (self.retry=="exponential" or self.retry=="all"):
             response.raise_for_status()
         if response.status == 200:
             await self._handle_response(response, stats)
